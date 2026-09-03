@@ -78,7 +78,7 @@ else:
     with c4: metric_card("3-season change", f"{trend_delta:+.2f} °C" if trend_delta is not None else "—", trend_label)
     st.markdown(f'<div class="surface" style="margin-top:1rem;border-left:4px solid {state_color};"><strong>{state.value}</strong> · <span style="color:#64748b">{intensity.value} intensity</span><br><span style="color:#475569">RONI {roni_val:+.2f} °C · {period}</span></div>', unsafe_allow_html=True)
 
-    section_header("RONI History", "Relative Niño 3.4 sea-surface-temperature anomaly · 3-month running mean.")
+    section_header("RONI History", "Relative Niño 3.4 sea-surface-temperature anomaly · three-month running mean.")
     plot = go.Figure()
     x = pd.to_datetime(roni_df["date"]) if "date" in roni_df.columns else pd.to_datetime(roni_df.index)
     ymin = min(-2.2, float(roni_df["roni"].min()) - .2)
