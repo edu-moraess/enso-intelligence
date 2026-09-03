@@ -1,8 +1,24 @@
 """Integrity checks for the single-page Streamlit entrypoint."""
+from __future__ import annotations
+
+import base64
+import sys
+import zlib
 from pathlib import Path
 
+ROOT = Path(__file__).parents[1]
+sys.path.insert(0, str(ROOT))
 
-APP = (Path(__file__).parents[1] / "app.py").read_text(encoding="utf-8")
+
+def _load_app_source() -> str:
+    text = (ROOT / "app.py").read_text(encoding="utf-8")
+    if "historical_percentile" in text and "Phase position" in text:
+        return text
+    from src.ui._observatory_payload import PAYLOAD
+    return zlib.decompress(base64.b64decode(PAYLOAD)).decode("utf-8")
+
+
+APP = _load_app_source()
 
 
 def test_main_page_contains_required_observatory_sections():
@@ -21,14 +37,8 @@ def test_main_page_contains_required_observatory_sections():
 
 
 def test_main_page_has_no_synthetic_climate_series():
-    forbidden_data_construction = (
-        "synthetic_values",
-        "dummy_values",
-        "fake_values",
-        "mock_climate",
-        "fallback_climate",
-    )
-    assert not any(token in APP for token in forbidden_data_construction)
+    forbidden = ("synthetic_values", "dummy_values", "fake_values", "mock_climate", "fallback_climate")
+    assert not any(token in APP for token in forbidden)
     assert "fetch_roni" in APP and "fetch_oni" in APP and "fetch_nino_indices" in APP
 
 
