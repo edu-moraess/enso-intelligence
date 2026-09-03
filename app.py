@@ -36,6 +36,7 @@ st.markdown("""
 .flow { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:.55rem; margin:1rem 0; }
 .flow-step { background:#f8fafc; border:1px solid #dbe5f0; border-radius:10px; padding:.65rem .85rem; font-weight:700; color:#334155; }
 .flow-arrow { color:#94a3b8; font-size:1.15rem; }
+.chart-meta { color:#64748b; font-size:.8rem; margin-top:-.2rem; margin-bottom:.35rem; }
 @media (max-width:700px) { .block-container { padding:1rem .9rem 3rem; } .hero { padding:1.55rem 1.25rem; } .flow { display:block; } .flow-step { margin:.3rem 0; text-align:center; } .flow-arrow { display:block; text-align:center; } }
 </style>
 """, unsafe_allow_html=True)
@@ -82,6 +83,7 @@ else:
     x = pd.to_datetime(roni_df["date"]) if "date" in roni_df.columns else pd.to_datetime(roni_df.index)
     ymin = min(-2.2, float(roni_df["roni"].min()) - .2)
     ymax = max(2.2, float(roni_df["roni"].max()) + .2)
+    default_start = max(x.iloc[0], x.iloc[-1] - pd.DateOffset(years=30))
     plot.add_hrect(y0=.5, y1=ymax, fillcolor="rgba(220,38,38,.07)", line_width=0)
     plot.add_hrect(y0=-.5, y1=.5, fillcolor="rgba(22,163,74,.035)", line_width=0)
     plot.add_hrect(y0=ymin, y1=-.5, fillcolor="rgba(37,99,235,.07)", line_width=0)
@@ -90,11 +92,11 @@ else:
     plot.add_hline(y=0, line_color="#94a3b8", line_width=1)
     plot.add_trace(go.Scatter(x=x, y=roni_df["roni"], mode="lines", name="RONI", line=dict(color="#0f766e", width=2.2), hovertemplate="%{x|%b %Y}<br>RONI: %{y:+.2f} °C<extra></extra>"))
     plot.add_trace(go.Scatter(x=[x.iloc[-1]], y=[roni_val], mode="markers", name="Latest", marker=dict(size=9, color="#0f172a"), hovertemplate=f"{period}<br>RONI: {roni_val:+.2f} °C<extra></extra>"))
-    plot.update_layout(height=500, margin=dict(l=5,r=5,t=18,b=5), hovermode="x", yaxis=dict(title="Anomaly (°C)", zeroline=False, range=[ymin,ymax]), xaxis=dict(title=None, rangeslider=dict(visible=True, thickness=.055), rangeselector=dict(buttons=[dict(count=10,label="10Y",step="year",stepmode="backward"),dict(count=30,label="30Y",step="year",stepmode="backward"),dict(step="all",label="All")])), plot_bgcolor="#ffffff", paper_bgcolor="#ffffff", showlegend=False, font=dict(color="#475569"))
+    plot.update_layout(height=440, margin=dict(l=8,r=8,t=14,b=8), hovermode="x", yaxis=dict(title="RONI (°C)", zeroline=False, range=[ymin,ymax]), xaxis=dict(title=None, range=[default_start, x.iloc[-1]], rangeslider=dict(visible=True, thickness=.045), rangeselector=dict(buttons=[dict(count=10,label="10Y",step="year",stepmode="backward"),dict(count=30,label="30Y",step="year",stepmode="backward"),dict(step="all",label="All")])), plot_bgcolor="#ffffff", paper_bgcolor="#ffffff", showlegend=False, font=dict(color="#475569"))
     st.plotly_chart(plot, use_container_width=True, config={"displaylogo":False, "responsive":True})
 
     with st.expander("Como interpretar"):
-        st.markdown("O RONI mede a anomalia relativa da temperatura da superfície do mar na região Niño 3.4 em uma média móvel de três meses. Valores acima de +0,5 °C correspondem à faixa operacional de El Niño; valores abaixo de −0,5 °C correspondem à faixa de La Niña. A intensidade exibida nesta interface é uma classificação do produto e não uma categoria oficial adicional do CPC.")
+        st.markdown("O RONI mede a anomalia relativa da temperatura da superfície do mar na região Niño 3.4 em uma média móvel de três meses. Valores acima de +0,5 °C correspondem à faixa operacional de El Niño; valores abaixo de −0,5 °C correspondem à faixa de La Niña. As categorias de intensidade seguem as faixas de intensidade publicadas pelo CPC.")
 
 st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
 section_header("Pacific Ocean", "Weekly relative SST anomalies from the four Niño regions published by NOAA CPC.")
@@ -104,13 +106,19 @@ else:
     regions = [("nino12_ssta","Niño 1+2"),("nino3_ssta","Niño 3"),("nino34_ssta","Niño 3.4"),("nino4_ssta","Niño 4")]
     available = [(col,label) for col,label in regions if col in nino_df.columns]
     if available:
+        latest_week = pd.to_datetime(nino_df.iloc[-1]["date"])
+        st.markdown(f'<div class="chart-meta">Latest weekly observation · {latest_week.strftime("%d %b %Y")}</div>', unsafe_allow_html=True)
         cards = st.columns(4)
         for card,(col,label) in zip(cards,available):
             with card: metric_card(label, f"{float(nino_df.iloc[-1][col]):+.2f} °C", "latest weekly anomaly")
         fig = go.Figure()
-        for col,label in available: fig.add_trace(go.Scatter(x=pd.to_datetime(nino_df["date"]), y=nino_df[col], mode="lines", name=label, line=dict(width=2)))
+        series_colors = {"Niño 1+2":"#2563eb","Niño 3":"#60a5fa","Niño 3.4":"#dc2626","Niño 4":"#fca5a5"}
+        for col,label in available:
+            fig.add_trace(go.Scatter(x=pd.to_datetime(nino_df["date"]), y=nino_df[col], mode="lines", name=label, line=dict(width=2, color=series_colors.get(label))))
         fig.add_hline(y=0, line_color="#94a3b8", line_width=1)
-        fig.update_layout(height=390, margin=dict(l=5,r=5,t=18,b=5), hovermode="x unified", yaxis_title="Relative SST anomaly (°C)", xaxis_title=None, plot_bgcolor="#ffffff", paper_bgcolor="#ffffff", legend=dict(orientation="h",y=1.08,x=0), font=dict(color="#475569"))
+        nino_x = pd.to_datetime(nino_df["date"])
+        nino_start = max(nino_x.iloc[0], nino_x.iloc[-1] - pd.DateOffset(years=5))
+        fig.update_layout(height=350, margin=dict(l=8,r=8,t=26,b=8), hovermode="x unified", yaxis=dict(title="Relative SST anomaly (°C)", zeroline=False), xaxis=dict(title=None, range=[nino_start, nino_x.iloc[-1]], rangeslider=dict(visible=True, thickness=.045), rangeselector=dict(buttons=[dict(count=2,label="2Y",step="year",stepmode="backward"),dict(count=5,label="5Y",step="year",stepmode="backward"),dict(step="all",label="All")])), plot_bgcolor="#ffffff", paper_bgcolor="#ffffff", legend=dict(orientation="h",y=1.08,x=0), font=dict(color="#475569"))
         st.plotly_chart(fig, use_container_width=True, config={"displaylogo":False, "responsive":True})
     else:
         data_unavailable_message(nino_meta.source, "Weekly regional index fields are unavailable.")
@@ -147,5 +155,5 @@ section_header("Data & Sources", "NOAA CPC products used by the observatory.")
 for meta in [roni_meta,oni_meta,nino_meta]:
     status = meta.status.value if hasattr(meta.status,"value") else str(meta.status)
     updated = meta.last_update.strftime("%d %b %Y · %H:%M UTC") if meta.last_update else "—"
-    st.markdown(f'<div class="source-row"><strong>{meta.dataset}</strong><br><small>{meta.source} · {status_badge(status)} · Updated {updated}</small></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="source-row"><strong>{meta.dataset}</strong><br><small>{meta.source} · {status_badge(status)} · {updated}</small></div>', unsafe_allow_html=True)
 st.caption("Source: NOAA Climate Prediction Center (CPC).")
