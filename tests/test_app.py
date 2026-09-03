@@ -35,7 +35,6 @@ def test_main_page_has_no_synthetic_climate_series():
 def test_main_page_handles_source_outages_without_fallback_values():
     assert "data_unavailable_message" in APP
     assert "if roni_df is None or roni_df.empty" in APP
-    # Positive-guard style used throughout the observatory
     assert "weekly_df is not None and not weekly_df.empty" in APP
     assert "NOAA CPC weekly Niño indices" in APP
 
