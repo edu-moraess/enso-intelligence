@@ -1,70 +1,71 @@
 # ENSO Intelligence
 
-**Real-time monitoring of El Niño and La Niña using official NOAA data.**
+**Scientific Climate Observatory for the El Niño–Southern Oscillation**
 
-Professional Streamlit dashboard for the El Niño–Southern Oscillation (ENSO).  
-All indicators are derived exclusively from live NOAA products.  
-No synthetic, mock or hand-crafted climate values are ever injected into the interface.
+Operational monitoring and scientific analysis of observed ENSO conditions using official NOAA climate products, transparent methods and reproducible processing.
 
----
-
-## Features
-
-- **Overview** — current ENSO state (El Niño / La Niña / Neutral), RONI, intensity, recent trend  
-- **ENSO Monitor** — interactive RONI (and optional ONI) time series with zoom, range slider and window selection  
-- **Historical Analysis** — automatic detection of ENSO episodes (≥ 5 consecutive seasons) from the real RONI series  
-- **Pacific SST** — weekly Niño 1+2, 3, 3.4 and 4 SST / SSTA indices (CPC / OISST)  
-- **Outlook** — official NOAA CPC ENSO phase probabilities and RONI strength outlook  
-- **Data Quality** — source, coverage, last probe and connection status for every stream  
-
-Light scientific theme only (white / light-grey cards, high contrast, no dark mode).
+> **UX:** Single-page vertical observatory (`streamlit run app.py`). Sidebar = Settings only. No multi-page navigation.
 
 ---
 
-## Data Sources
+## Motivation
+
+Provide a research-grade interface to:
+
+1. retrieve official NOAA ENSO indices;
+2. classify observed ENSO phase and communicate intensity;
+3. document methodology, provenance and limitations;
+4. support portfolio, academic demonstration and future TCC-oriented expansion.
+
+## Scientific scope
+
+| In scope | Out of scope (this version) |
+|----------|------------------------------|
+| Observational RONI / ONI / Niño indices | Seasonal forecast models |
+| Phase classification (±0.5 °C) | Synthetic or fallback climate data |
+| Observational trend metrics | Gridded SST maps without validated load |
+| Historical episode detection from series | Quantitative Brazil impact scores |
+| Qualitative teleconnection education | NDVI / agricultural models |
+
+## Data sources
 
 | Product | Role | Endpoint |
 |---------|------|----------|
-| **RONI** (Relative Oceanic Niño Index) | Primary operational index (since Feb 2026) | `https://www.cpc.ncep.noaa.gov/data/indices/RONI.ascii.txt` |
-| **ONI** (Oceanic Niño Index) | Complementary / historical | `https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt` |
-| Weekly Niño region SST/SSTA | Pacific monitoring | `https://www.cpc.ncep.noaa.gov/data/indices/wksst8110.for` |
-| CPC ENSO probabilities | Official outlook | CPC RONI probabilities page |
-| **ERSSTv6** | Gridded SST foundation of RONI | NOAA NCEI / PSL |
+| **RONI** | Primary operational index | `cpc.ncep.noaa.gov/data/indices/RONI.ascii.txt` |
+| **ONI** | Complementary / historical | `.../oni.ascii.txt` |
+| Weekly Niño | Regional weekly SSTA | `.../wksst9120.for` |
+| Monthly Niño | Regional monthly SSTA | `.../sstoi.indices` |
+| ERSSTv6 | Status / optional monthly fields | NOAA NCEI |
 
-When any source is unreachable the UI displays a clear message and never substitutes fabricated numbers.
+## Methodology (summary)
 
----
+```
+NOAA products → acquisition → parsing → validation
+→ indicator processing → classification → visualization
+```
 
-## Methodology
+- **Phase:** RONI ≥ +0.5 °C → El Niño; ≤ −0.5 °C → La Niña; else Neutral (NOAA operational thresholds).
+- **Intensity:** project magnitude bands (Weak / Moderate / Strong / Very Strong) — documented, not an official NOAA categorical product.
+- **Events:** ≥ 5 consecutive seasons beyond threshold on the real RONI series.
+- **Trends:** observational deltas and OLS slope on recent seasons — not forecasts.
 
-### Phase classification (NOAA operational)
+**Data integrity policy.** Observations come from official NOAA products. Unavailable observations are not replaced with synthetic, mocked or fallback climate values.
 
-| Condition | State |
-|-----------|--------|
-| Index ≥ +0.5 °C | **El Niño** |
-| Index ≤ −0.5 °C | **La Niña** |
-| otherwise | **Neutral** |
+## Architecture
 
-### Intensity (absolute magnitude of the 3-month running mean)
-
-| Range (°C) | Intensity |
-|------------|-----------|
-| 0.5 – 0.9 | Weak |
-| 1.0 – 1.4 | Moderate |
-| 1.5 – 1.9 | Strong |
-| ≥ 2.0 | Very Strong |
-
-### Event detection
-
-Contiguous runs of the same non-neutral state lasting **≥ 5 overlapping seasons** are retained as events (NOAA historical convention).
-
----
+```
+app.py                 # Single-page Streamlit observatory
+src/noaa/              # RONI, ONI, Niño, ERSST access
+src/analysis/          # Classification, trends, events
+src/data/              # Config, thresholds, metadata
+src/ui/                # Theme and components
+tests/                 # Offline unit tests
+pages_archive/         # Legacy multipage modules (not loaded)
+```
 
 ## Installation
 
 ```bash
-git clone https://github.com/edu-moraess/enso-intelligence.git
-cd enso-intelligence
 pip install -r requirements.txt
 streamlit run app.py
 ```
@@ -72,9 +73,22 @@ streamlit run app.py
 ## Testing
 
 ```bash
+python -m compileall -q .
 pytest -q
 ```
 
+## Limitations
+
+- Observational only — not a forecasting system.
+- Intensity bands are a project convention.
+- No validated gridded Pacific anomaly map is required for core operation.
+- Brazil section is educational; no regional meteorological dataset is ingested.
+- Weekly and seasonal indices are different summaries and may disagree.
+
+## Future research
+
+Statistical teleconnections, precipitation/temperature composites, agricultural indicators, multivariate indices, and a **separate** forecast module with explicit uncertainty — all requiring documented methods and no synthetic observational fill.
+
 ## Licence & attribution
 
-Climate data © NOAA. This software is provided for research and educational use.
+Climate data © NOAA. Cite original NOAA CPC / NCEI products when publishing results derived from this software.
