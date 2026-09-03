@@ -86,7 +86,7 @@ else:
     plot.add_hline(y=-.5, line_color="#2563eb", line_dash="dash", annotation_text="−0,5 °C")
     plot.add_trace(go.Scatter(x=x, y=roni_df["roni"], mode="lines+markers", name="RONI", line=dict(color="#0f766e", width=2.5), marker=dict(size=4), hovertemplate="%{x|%b %Y}<br>RONI: %{y:+.2f} °C<extra></extra>"))
     plot.update_layout(height=450, margin=dict(l=10,r=10,t=25,b=10), hovermode="x", yaxis_title="Anomalia (°C)", xaxis_title="Período", plot_bgcolor="#ffffff", paper_bgcolor="#ffffff", legend=dict(orientation="h"))
-    st.plotly_chart(plot, use_container_width=True, config={"displaylogo":False, "responsive":True})
+    st.plotly_chart(plot, width="stretch", config={"displaylogo":False, "responsive":True})
 
     with st.expander("Como interpretar este gráfico?"):
         st.markdown("**SST** é a temperatura da superfície do mar. Uma **anomalia** é a diferença entre a SST observada e uma referência climática. **Niño 3.4** é uma região do Pacífico equatorial usada para monitorar o ENSO; o **RONI** é o índice operacional relativo destacado pelo CPC. Valores positivos indicam aquecimento relativo e negativos indicam resfriamento relativo. Neste painel, ±0,5 °C são os limiares usados para separar El Niño, Neutral e La Niña.")
@@ -106,7 +106,7 @@ else:
         fig = go.Figure()
         for col,label in available: fig.add_trace(go.Scatter(x=nino_df["date"], y=nino_df[col], mode="lines", name=label))
         fig.add_hline(y=0, line_color="#64748b"); fig.update_layout(height=360, margin=dict(l=10,r=10,t=20,b=10), hovermode="x unified", yaxis_title="Anomalia (°C)", plot_bgcolor="#fff", paper_bgcolor="#fff")
-        st.plotly_chart(fig, use_container_width=True, config={"displaylogo":False, "responsive":True})
+        st.plotly_chart(fig, width="stretch", config={"displaylogo":False, "responsive":True})
     else: st.caption("A NOAA respondeu, mas não retornou colunas regionais reconhecidas para este produto.")
 
 st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
