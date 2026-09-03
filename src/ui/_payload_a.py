@@ -1,2 +1,0 @@
-"""Payload part A."""
-PART_A = "eNrNfV1z20i22Lt+RRdcsyJlkuKHKMvy0Pd6NZqMqzy2Y2l3akur4gWBJok1CGABUBJXo1"
