@@ -154,12 +154,10 @@ def _parse_weekly_nino(text: str) -> pd.DataFrame:
     regex extracts signed floats robustly.
     """
     rows = []
-    # Date like 03JAN2024 or 3JAN2024
     date_re = re.compile(
         r"^\s*(\d{1,2}[A-Za-z]{3}\d{4})\s+(.*)$",
         re.IGNORECASE,
     )
-    # Extract all signed floats from the remainder
     float_re = re.compile(r"[-+]?\d+\.\d+")
 
     for line in text.splitlines():
@@ -175,7 +173,6 @@ def _parse_weekly_nino(text: str) -> pd.DataFrame:
             except ValueError:
                 continue
         nums = [float(x) for x in float_re.findall(rest)]
-        # Expect pairs: SST, SSTA for 4 regions => 8 values
         if len(nums) < 8:
             continue
         rows.append(
@@ -197,6 +194,10 @@ def _parse_weekly_nino(text: str) -> pd.DataFrame:
 
     df = pd.DataFrame(rows)
     df = df.sort_values("date").reset_index(drop=True)
+    # Keep the explicit anomaly names used by the one-page observatory UI.
+    # The canonical parser fields above remain unchanged for compatibility.
+    for region in ("nino12", "nino3", "nino34", "nino4"):
+        df[f"{region}_ssta"] = df[region]
     return df
 
 
@@ -256,7 +257,6 @@ def _parse_monthly_nino(text: str) -> pd.DataFrame:
         try:
             year = int(parts[0])
             month = int(parts[1])
-            # Typical columns: YR MON NINO1+2 ANOM NINO3 ANOM NINO34 ANOM NINO4 ANOM
             n12 = float(parts[2])
             n12a = float(parts[3])
             n3 = float(parts[4])
