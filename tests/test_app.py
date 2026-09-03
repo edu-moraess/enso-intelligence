@@ -7,17 +7,18 @@ APP = (Path(__file__).parents[1] / "app.py").read_text(encoding="utf-8")
 
 def test_main_page_contains_required_observatory_sections():
     for heading in (
-        "Current ENSO State",
-        "RONI",
+        "ENSO State",
+        "RONI History",
         "Pacific Ocean",
-        "Climate Implications",
+        "Climate Context",
         "Methodology",
-        "Data Provenance",
-        "Observation \u2260 Forecast",
+        "RONI vs ONI",
+        "Data & Sources",
     ):
         assert heading in APP
     assert "Use the sidebar to navigate" not in APP
-    assert "st.sidebar" in APP or "stSidebar" in APP or "with st.sidebar" in APP
+    assert "st.sidebar" not in APP
+    assert "stSidebar" in APP
 
 
 def test_main_page_has_no_synthetic_climate_series():
@@ -35,13 +36,14 @@ def test_main_page_has_no_synthetic_climate_series():
 def test_main_page_handles_source_outages_without_fallback_values():
     assert "data_unavailable_message" in APP
     assert "if roni_df is None or roni_df.empty" in APP
-    assert "weekly_df is not None and not weekly_df.empty" in APP
-    assert "NOAA CPC weekly Ni\u00f1o indices" in APP
+    assert "if nino_df is None or nino_df.empty" in APP
+    assert "fetch_nino_indices" in APP
 
 
-def test_etapa2_scientific_markers_present():
-    assert "historical_percentile" in APP
-    assert "Phase position" in APP or "intensity_gauge_position" in APP
-    assert "\u0394 12" in APP or "delta_12" in APP
-    assert "threshold-defined" in APP
-    assert "Spatial SST Analysis" in APP
+def test_refined_ui_keeps_scientific_guardrails():
+    assert "three-month" in APP
+    assert "+0.5" in APP
+    assert "−0.5" in APP
+    assert "intensity" in APP
+    assert "not a category official" not in APP
+    assert "does not represent forecast error" in APP
