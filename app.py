@@ -14,7 +14,7 @@ import streamlit as st
 
 from src.analysis.enso import classify_enso_state, classify_intensity, compute_recent_trend
 from src.noaa import fetch_nino_indices, fetch_oni, fetch_roni
-from src.ui.components import apply_light_theme, data_unavailable_message, metric_card, section_header, status_badge
+from src.ui.components import apply_light_theme, data_unavailable_message, metric_card, section_header
 
 st.set_page_config(page_title="ENSO Intelligence | Climate Observatory", page_icon="🌎", layout="wide", initial_sidebar_state="collapsed")
 apply_light_theme()
@@ -153,7 +153,5 @@ else:
 st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
 section_header("Data & Sources", "NOAA CPC products used by the observatory.")
 for meta in [roni_meta,oni_meta,nino_meta]:
-    status = meta.status.value if hasattr(meta.status,"value") else str(meta.status)
-    updated = meta.last_update.strftime("%d %b %Y · %H:%M UTC") if meta.last_update else "—"
-    st.markdown(f'<div class="source-row"><strong>{meta.dataset}</strong><br><small>{meta.source} · {status_badge(status)} · {updated}</small></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="source-row"><strong>{meta.dataset}</strong><br><small>NOAA Climate Prediction Center (CPC)</small></div>', unsafe_allow_html=True)
 st.caption("Source: NOAA Climate Prediction Center (CPC).")
