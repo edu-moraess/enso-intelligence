@@ -1,131 +1,132 @@
-"""Reusable Streamlit UI components for ENSO Intelligence.
-
-Keep presentation helpers small and dependency-light so every Streamlit page can
-import them safely in Streamlit Community Cloud.
-"""
+"""Reusable Streamlit UI components — light theme, climate observatory aesthetic."""
 
 from __future__ import annotations
 
-import html
+from typing import Optional
 
 import streamlit as st
 
 
 def apply_light_theme() -> None:
-    """Apply the project's light scientific visual theme."""
+    """Inject CSS for a clean light scientific observatory look."""
     st.markdown(
         """
         <style>
-        :root {
-            --enso-text: #111827;
-            --enso-muted: #6b7280;
-            --enso-border: #e5e7eb;
-            --enso-surface: #ffffff;
+        .stApp { background-color: #f5f7fa; color: #1a1a1a; }
+        section[data-testid="stSidebar"] {
+            background-color: #ffffff;
+            border-right: 1px solid #e5e7eb;
         }
-        .stApp {
-            background: #f8fafc;
-            color: var(--enso-text);
-        }
-        [data-testid="stHeader"] {
-            background: rgba(248, 250, 252, 0.92);
-        }
-        [data-testid="stSidebar"] {
+        h1, h2, h3 { color: #111827 !important; font-weight: 650 !important; letter-spacing: -0.02em; }
+        div[data-testid="stMetric"] {
             background: #ffffff;
-            border-right: 1px solid var(--enso-border);
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 0.9rem 1.1rem;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
         }
-        .enso-card {
-            background: var(--enso-surface);
-            border: 1px solid var(--enso-border);
+        div[data-testid="stMetric"] label {
+            color: #6b7280 !important;
+            font-size: 0.75rem !important;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        div[data-testid="stMetric"] [data-testid="stMetricValue"] {
+            color: #111827 !important;
+            font-weight: 650;
+        }
+        .obs-hero {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
             border-radius: 14px;
-            padding: 1rem 1.1rem;
-            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+            padding: 1.75rem 2rem;
+            margin-bottom: 1.25rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
-        .enso-section-title {
-            color: var(--enso-text);
-            font-size: 1.25rem;
-            font-weight: 700;
-            margin: 0;
+        .obs-card {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 1.25rem 1.4rem;
+            margin-bottom: 0.85rem;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
         }
-        .enso-section-caption {
-            color: var(--enso-muted);
-            font-size: 0.9rem;
-            margin-top: 0.15rem;
+        .state-el-nino { color: #b91c1c; font-weight: 800; font-size: 2rem; letter-spacing: -0.03em; }
+        .state-la-nina { color: #1d4ed8; font-weight: 800; font-size: 2rem; letter-spacing: -0.03em; }
+        .state-neutral { color: #374151; font-weight: 800; font-size: 2rem; letter-spacing: -0.03em; }
+        .intensity-label { color: #4b5563; font-size: 1.05rem; margin-top: 0.15rem; }
+        .badge {
+            display: inline-block;
+            padding: 0.18rem 0.6rem;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 650;
+            letter-spacing: 0.03em;
         }
+        .badge-ok { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+        .badge-warn { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+        .badge-err { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+        .badge-info { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+        .badge-hot { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+        .badge-cold { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+        .badge-neu { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
+        .flow-step {
+            display: inline-block;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 0.35rem 0.7rem;
+            margin: 0.2rem;
+            font-size: 0.85rem;
+            color: #374151;
+        }
+        .section-label {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #6b7280;
+            margin-bottom: 0.35rem;
+        }
+        .block-container { padding-top: 1.25rem; max-width: 1100px; }
+        hr { border: none; border-top: 1px solid #e5e7eb; margin: 1.5rem 0; }
         </style>
         """,
         unsafe_allow_html=True,
     )
 
 
-def metric_card(label: str, value: str, delta: str | None = None) -> None:
-    """Render a compact metric card."""
-    delta_html = ""
-    if delta is not None:
-        delta_html = (
-            f'<div style="margin-top:.35rem;color:#6b7280;font-size:.8rem;">'
-            f"{html.escape(str(delta))}</div>"
-        )
-    st.markdown(
-        f"""
-        <div class="enso-card">
-            <div style="font-size:.75rem;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;">
-                {html.escape(str(label))}
-            </div>
-            <div style="font-size:1.45rem;font-weight:700;color:#111827;margin-top:.2rem;">
-                {html.escape(str(value))}
-            </div>
-            {delta_html}
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def status_badge(label: str, state: str | None = None) -> str:
-    """Return a semantic HTML status badge."""
-    text = state or label
-    normalized = str(text).lower()
-    if "el niño" in normalized or "el nino" in normalized:
-        background, foreground = "#fee2e2", "#991b1b"
-    elif "la niña" in normalized or "la nina" in normalized:
-        background, foreground = "#dbeafe", "#1e40af"
-    else:
-        background, foreground = "#dcfce7", "#166534"
-    return (
-        f'<span style="display:inline-block;padding:.3rem .65rem;border-radius:999px;'
-        f'background:{background};color:{foreground};font-weight:700;font-size:.82rem;">'
-        f"{html.escape(str(text))}</span>"
-    )
-
-
-def enso_state_html(state: str) -> str:
-    """Return a large semantic ENSO state indicator as HTML."""
-    normalized = str(state).lower()
-    if "el niño" in normalized or "el nino" in normalized:
-        symbol, background, foreground = "🔴", "#fee2e2", "#991b1b"
-    elif "la niña" in normalized or "la nina" in normalized:
-        symbol, background, foreground = "🔵", "#dbeafe", "#1e40af"
-    else:
-        symbol, background, foreground = "🟢", "#dcfce7", "#166534"
-    return (
-        f'<div style="display:inline-flex;align-items:center;gap:.5rem;margin-top:.35rem;'
-        f'padding:.45rem .75rem;border-radius:10px;background:{background};color:{foreground};'
-        f'font-size:1.25rem;font-weight:800;">{symbol} {html.escape(str(state))}</div>'
-    )
-
-
-def section_header(title: str, subtitle: str | None = None) -> None:
-    """Render a consistent section heading."""
-    subtitle_html = ""
+def section_header(title: str, subtitle: Optional[str] = None) -> None:
+    st.markdown(f"### {title}")
     if subtitle:
-        subtitle_html = f'<div class="enso-section-caption">{html.escape(str(subtitle))}</div>'
-    st.markdown(
-        f'<div class="enso-section-title">{html.escape(str(title))}</div>{subtitle_html}',
-        unsafe_allow_html=True,
-    )
+        st.caption(subtitle)
 
 
-def data_unavailable_message(source: str, message: str | None = None) -> None:
-    """Explain a data-source outage without substituting synthetic data."""
-    detail = message or "The source did not return usable data."
-    st.warning(f"Data unavailable from {source}. {detail}")
+def status_badge(status: str) -> str:
+    mapping = {
+        "Connected": "badge-ok",
+        "Updated": "badge-ok",
+        "Warning": "badge-warn",
+        "Error": "badge-err",
+        "Unavailable": "badge-err",
+    }
+    cls = mapping.get(status, "badge-info")
+    return f'<span class="badge {cls}">{status}</span>'
+
+
+def data_unavailable_message(source: str = "NOAA", detail: Optional[str] = None) -> None:
+    msg = f"**{source} data unavailable.** Please try again later."
+    if detail:
+        msg += f"\n\n_{detail}_"
+    st.warning(msg)
+
+
+def enso_state_class(state: str) -> str:
+    return {
+        "El Niño": "state-el-nino",
+        "La Niña": "state-la-nina",
+        "Neutral": "state-neutral",
+    }.get(state, "state-neutral")
+
+
+def state_emoji(state: str) -> str:
+    return {"El Niño": "🔴", "La Niña": "🔵", "Neutral": "⚪"}.get(state, "⚪")

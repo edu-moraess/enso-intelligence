@@ -10,6 +10,9 @@ from src.analysis.enso import (
     classify_intensity,
     compute_recent_trend,
     detect_enso_events,
+    recent_evolution_metrics,
+    historical_percentile,
+    intensity_gauge_position,
     ENSOState,
     Intensity,
 )
@@ -119,3 +122,58 @@ class TestEventDetection:
     def test_empty_input(self):
         assert detect_enso_events(pd.DataFrame()) == []
         assert detect_enso_events(None) == []
+
+
+class TestRecentEvolution:
+    def test_metrics_warming(self):
+        s = pd.Series([0.0, 0.2, 0.4, 0.6, 0.9])
+        m = recent_evolution_metrics(s)
+        assert m["delta_1"] == pytest.approx(0.3)
+        assert m["delta_3"] == pytest.approx(0.5)
+        assert m["label_3"] == "warming"
+        assert m["slope_5"] is not None
+        assert m["slope_5"] > 0
+
+    def test_insufficient(self):
+        s = pd.Series([0.1])
+        m = recent_evolution_metrics(s)
+        assert m["label_3"] == "insufficient data"
+        assert m["delta_1"] is None
+
+
+class TestHistoricalPercentile:
+    def test_median_approx(self):
+        s = pd.Series([1.0, 2.0, 3.0, 4.0, 5.0])
+        p = historical_percentile(s, 3.0)
+        assert p is not None
+        assert 40 <= p <= 60
+
+    def test_max(self):
+        s = pd.Series([0.0, 1.0, 2.0])
+        p = historical_percentile(s, 2.0)
+        assert p is not None
+        assert p > 70
+
+    def test_empty(self):
+        assert historical_percentile(pd.Series(dtype=float), 1.0) is None
+
+
+class TestGaugePosition:
+    def test_zero(self):
+        assert intensity_gauge_position(0.0) == pytest.approx(0.5)
+
+    def test_el_nino_side(self):
+        assert intensity_gauge_position(1.5) == pytest.approx(1.0)
+
+    def test_la_nina_side(self):
+        assert intensity_gauge_position(-1.5) == pytest.approx(0.0)
+
+
+class TestRecentEvolutionExtended:
+    def test_delta_12_and_r2(self):
+        s = pd.Series([float(i) * 0.1 for i in range(15)])
+        m = recent_evolution_metrics(s, ols_window=5)
+        assert m["delta_12"] is not None
+        assert m["r_squared"] is not None
+        assert m["ols_n"] == 5
+        assert m["slope"] > 0
