@@ -91,7 +91,7 @@ else:
     with st.expander("Como interpretar este gráfico?"):
         st.markdown("**SST** é a temperatura da superfície do mar. Uma **anomalia** é a diferença entre a SST observada e uma referência climática. **Niño 3.4** é uma região do Pacífico equatorial usada para monitorar o ENSO; o **RONI** é o índice operacional relativo destacado pelo CPC. Valores positivos indicam aquecimento relativo e negativos indicam resfriamento relativo. Neste painel, ±0,5 °C são os limiares usados para separar El Niño, Neutral e La Niña.")
     with st.expander("Por que está nessa cor?"):
-        st.markdown(f"O indicador aparece na faixa de **{state.value}** porque o RONI real mais recente é **{roni_val:+.2f} °C**, valor que está {('acima de +0,5 °C' if roni_val >= .5 else 'abaixo de −0,5 °C' if roni_val <= -.5 else 'entre −0,5 °C e +0,5 °C')}. A cor é semântica e acompanha a classificação, não um valor decorativo.")
+        st.markdown(f"O indicador aparece na faixa de **{state.value}** porque o RONI real mais recente é **{roni_val:+.2f} °C**, valor que está {('acima de +0,5 °C' if roni_val >= .5 else 'abaixo de −0,5 °C' if roni_val <= -.5 else 'entre −0,5 °C e +0,5 °C')}.")
 
 st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
 section_header("Pacific Ocean", "Índices semanais publicados pela NOAA; SST e anomalia são mantidas como séries distintas.")
@@ -102,7 +102,9 @@ else:
     available = [(col,label) for col,label in regions if col in nino_df.columns]
     if available:
         cards = st.columns(len(available))
-        for card, (col,label) in zip(cards, available): metric_card(label, f"{float(nino_df.iloc[-1][col]):+.2f} °C", "anomalia semanal")
+        for card, (col,label) in zip(cards, available):
+            with card:
+                metric_card(label, f"{float(nino_df.iloc[-1][col]):+.2f} °C", "anomalia semanal")
         fig = go.Figure()
         for col,label in available: fig.add_trace(go.Scatter(x=nino_df["date"], y=nino_df[col], mode="lines", name=label))
         fig.add_hline(y=0, line_color="#64748b"); fig.update_layout(height=360, margin=dict(l=10,r=10,t=20,b=10), hovermode="x unified", yaxis_title="Anomalia (°C)", plot_bgcolor="#fff", paper_bgcolor="#fff")
@@ -133,6 +135,8 @@ with st.expander("RONI vs ONI"):
 st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
 section_header("Data Quality", "Proveniência e estado das fontes, sem fallback sintético.")
 for meta in [roni_meta, oni_meta, nino_meta]:
-    status = "Available" if meta.status == "ok" else "Data unavailable"
-    st.markdown(f'<div class="surface" style="margin:.6rem 0"><strong>{meta.source}</strong> · {status_badge(status)}<br><small>Registros: {meta.n_records or "—"} · Coleta: {meta.fetched_at.isoformat() if meta.fetched_at else "—"}<br>Endpoint: {meta.endpoint}</small>{("<br>Detalhe: " + str(meta.message)) if meta.message else ""}</div>', unsafe_allow_html=True)
+    status = meta.status.value if hasattr(meta.status, "value") else str(meta.status)
+    updated = meta.last_update.isoformat() if meta.last_update else "—"
+    endpoint = meta.url or "—"
+    st.markdown(f'<div class="surface" style="margin:.6rem 0"><strong>{meta.source}</strong> · {status_badge(status)}<br><small>Registros: {meta.n_records or "—"} · Atualização: {updated}<br>Endpoint: {endpoint}</small>{("<br>Detalhe: " + str(meta.message)) if meta.message else ""}</div>', unsafe_allow_html=True)
 st.caption("Fontes oficiais: NOAA CPC. O cache de uma hora reduz downloads repetidos; indisponibilidade é exibida como tal e nunca é preenchida com mock, sample, dummy, synthetic, fake ou fallback climático.")
