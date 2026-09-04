@@ -12,8 +12,19 @@ import requests
 SOI_URL = "https://www.cpc.ncep.noaa.gov/data/indices/soi"
 
 
+_NUMBER_RE = re.compile(r"[-+]?\d+(?:\.\d+)?")
+
+
 def _parse_soi_text(text: str) -> pd.DataFrame:
-    """Parse the CPC monthly standardized SOI table into long form."""
+    """Parse the CPC monthly standardized SOI table into long form.
+
+    CPC currently publishes missing values as ``-999.9``. In the current
+    file some missing fields are adjacent to the previous value without
+    whitespace (for example ``-1.8-999.9``), so tokenizing the row with
+    ``split()`` is not reliable. Parse the numeric fields directly instead.
+    Only the first SOI table is consumed; the file also contains a second,
+    differently scaled standardized table below it.
+    """
     lines = text.splitlines()
     header_index = next(
         (i for i, line in enumerate(lines) if re.match(r"^\s*YEAR\s+JAN\s+FEB", line)),
@@ -26,11 +37,17 @@ def _parse_soi_text(text: str) -> pd.DataFrame:
     for line in lines[header_index + 1 :]:
         match = re.match(r"^\s*(\d{4})(.*)$", line)
         if not match:
+            # Stop before the second table. This also prevents accidentally
+            # parsing any later YEAR header/table as part of the first block.
+            if rows and "STANDARDIZED" in line.upper():
+                break
             continue
+
         year = int(match.group(1))
-        values = re.findall(r"[-+]?\d+(?:\.\d+)?", match.group(2))
+        values = _NUMBER_RE.findall(match.group(2))
         if len(values) < 12:
             continue
+
         for month, raw in zip(range(1, 13), values[:12]):
             value = float(raw)
             if value <= -999:
