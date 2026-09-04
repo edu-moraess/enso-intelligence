@@ -327,13 +327,5 @@ else:
     st.markdown('<div class="executive-note"><strong>Guardrail:</strong> o observatório descreve condições observadas. Não produz previsão probabilística nem usa dados sintéticos, mock ou fallback para observações climáticas.</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
-    section_header("DATA & PROVENANCE", "Fontes, cobertura e princípios de versionamento da base operacional.")
-    provenance = [
-        ("RONI", "NOAA CPC · Operational ENSO index", "Foundation snapshot · canonical CSV + manifest"),
-        ("ONI", "NOAA CPC · Oceanic Niño Index", "Foundation snapshot · canonical CSV + manifest"),
-        ("Weekly Niño region SSTA", "NOAA CPC · OISST.v2.1 · 1991–2020 base", "Foundation snapshot · canonical CSV + manifest"),
-        ("Atmospheric SOI", "NOAA CPC · Southern Oscillation Index", "Foundation snapshot when available"),
-    ]
-    for name, source, status in provenance:
-        st.markdown(f'<div class="source-row"><strong>{name}</strong><br><small>{source} · {status}</small></div>', unsafe_allow_html=True)
-    st.markdown('<div class="executive-note"><strong>Data policy:</strong> no synthetic observations, no mocked climate values, no hidden fallback dataset and no unknown estimates. Recent official index values may be revised by NOAA.</div>', unsafe_allow_html=True)
+    section_header("DATA & PROVENANCE", "Official NOAA datasets · Operational ENSO monitoring.")
+    st.markdown('<div class="provenance-note">Official NOAA datasets · Operational ENSO monitoring.<br><span style="color:#64748b;font-size:.78rem;">Recent official index values may be revised by NOAA.</span></div>', unsafe_allow_html=True)
