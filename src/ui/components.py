@@ -9,7 +9,7 @@ import streamlit as st
 
 
 def _configure_observatory_chart(fig):
-    """Apply safe Plotly margins and overflow settings before rendering."""
+    """Apply safe Plotly margins and visible endpoints before rendering."""
     if not isinstance(fig, go.Figure):
         return fig
 
@@ -27,6 +27,36 @@ def _configure_observatory_chart(fig):
     fig.update_xaxes(automargin=True)
     fig.update_yaxes(automargin=True)
     fig.update_traces(cliponaxis=False)
+
+    # Diagnostic endpoint markers make edge clipping immediately visible.
+    endpoint_markers = []
+    for trace in list(fig.data):
+        mode = str(trace.mode or "") if hasattr(trace, "mode") else ""
+        if trace.type != "scatter" or "lines" not in mode or "markers" in mode:
+            continue
+        x_values = list(trace.x) if trace.x is not None else []
+        y_values = list(trace.y) if trace.y is not None else []
+        if not x_values or not y_values:
+            continue
+        last_x = next((value for value in reversed(x_values) if value is not None), None)
+        last_y = next((value for value in reversed(y_values) if value is not None), None)
+        if last_x is None or last_y is None:
+            continue
+        line_color = getattr(trace.line, "color", None) or "#0f172a"
+        endpoint_markers.append(
+            go.Scatter(
+                x=[last_x],
+                y=[last_y],
+                mode="markers",
+                name=f"{trace.name or 'Series'} endpoint",
+                marker=dict(size=8, color=line_color, line=dict(width=1, color="#ffffff")),
+                showlegend=False,
+                hoverinfo="skip",
+                cliponaxis=False,
+            )
+        )
+    if endpoint_markers:
+        fig.add_traces(endpoint_markers)
 
     for annotation in fig.layout.annotations or []:
         text = str(annotation.text or "")
