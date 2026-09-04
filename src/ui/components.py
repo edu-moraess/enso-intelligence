@@ -4,11 +4,61 @@ from __future__ import annotations
 
 from typing import Optional
 
+import plotly.graph_objects as go
 import streamlit as st
+
+
+def _configure_observatory_chart(fig):
+    """Apply safe Plotly margins and overflow settings before rendering."""
+    if not isinstance(fig, go.Figure):
+        return fig
+
+    current_margin = dict(fig.layout.margin) if fig.layout.margin else {}
+    fig.update_layout(
+        margin=dict(
+            l=max(72, int(current_margin.get("l") or 0)),
+            r=max(28, int(current_margin.get("r") or 0)),
+            t=max(42, int(current_margin.get("t") or 0)),
+            b=max(34, int(current_margin.get("b") or 0)),
+            pad=max(4, int(current_margin.get("pad") or 0)),
+        )
+    )
+    fig.update_xaxes(automargin=True)
+    fig.update_yaxes(automargin=True)
+    fig.update_traces(cliponaxis=False)
+
+    # Keep ENSO threshold labels inside the plot instead of against the Y axis.
+    for annotation in fig.layout.annotations or []:
+        text = str(annotation.text or "")
+        if text.startswith("El Niño +0.5") or text.startswith("La Niña"):
+            annotation.xref = "paper"
+            annotation.x = 0.025
+            annotation.xanchor = "left"
+            annotation.xshift = 0
+            annotation.yshift = 0
+            annotation.bgcolor = "rgba(255,255,255,.82)"
+            annotation.borderpad = 3
+
+    return fig
+
+
+def _install_chart_guard() -> None:
+    """Ensure every Plotly chart gets the observatory layout guard once."""
+    if getattr(st, "_enso_chart_guard_installed", False):
+        return
+
+    original_plotly_chart = st.plotly_chart
+
+    def guarded_plotly_chart(figure_or_data, *args, **kwargs):
+        return original_plotly_chart(_configure_observatory_chart(figure_or_data), *args, **kwargs)
+
+    st.plotly_chart = guarded_plotly_chart
+    st._enso_chart_guard_installed = True
 
 
 def apply_light_theme() -> None:
     """Inject CSS for a clean light scientific observatory look."""
+    _install_chart_guard()
     st.markdown(
         """
         <style>
@@ -64,7 +114,8 @@ def apply_light_theme() -> None:
         /* ENSO Signal polish: keep chart controls compact, legible, and visually secondary. */
         .js-plotly-plot .rangeselector text { font-size: 10px !important; }
         .js-plotly-plot .rangeslider-container { opacity: .82; }
-        .stPlotlyChart { margin-top: .15rem; }
+        .stPlotlyChart { margin-top: .15rem; overflow: visible !important; }
+        .stPlotlyChart > div, .js-plotly-plot, .plot-container, .svg-container { max-width: 100% !important; }
 
         @media (min-width:701px) and (max-width:1100px) {
             .flow { flex-wrap: wrap !important; }
