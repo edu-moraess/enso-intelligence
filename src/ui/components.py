@@ -60,7 +60,7 @@ def apply_light_theme() -> None:
 
 
 def render_regime_timeline() -> None:
-    """Render the RONI regime timeline as an explicit UI component."""
+    """Render the RONI regime timeline as a dedicated UI component."""
     regime_df, _ = fetch_roni()
     regime_fig = build_regime_timeline(regime_df)
     if regime_fig is None:
@@ -74,6 +74,8 @@ def render_regime_timeline() -> None:
 
 def section_header(title: str, subtitle: Optional[str] = None) -> None:
     """Render a clean section header for the one-page observatory."""
+    if title == "PACIFIC CONDITIONS":
+        render_regime_timeline()
     st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
     st.markdown(f'<div class="section-title">{title}</div>', unsafe_allow_html=True)
     if subtitle:
