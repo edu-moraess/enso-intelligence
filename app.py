@@ -39,8 +39,10 @@ st.markdown(
 .surface p { color:#475569; line-height:1.5; margin:0; }
 .source-row { background:#fff; border:1px solid #e2e8f0; border-radius:11px; padding:.7rem .9rem; margin:.4rem 0; }
 .source-row small { color:#64748b; }
-.section-rule { border-top:1px solid #e2e8f0; margin:1.9rem 0 1.25rem; }
-.chart-meta,.chart-note { color:#64748b; font-size:.8rem; }
+.section-rule { border-top:1px solid #e2e8f0; margin:2.35rem 0 1.4rem; }
+.section-subtitle { margin-bottom:.75rem; }
+.chart-meta { color:#64748b; font-size:.8rem; margin-bottom:.65rem; }
+.chart-note { color:#64748b; font-size:.8rem; margin-top:.65rem; margin-bottom:1.7rem; }
 .flow { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:.5rem; margin:.8rem 0; }
 .flow-step { background:#f8fafc; border:1px solid #dbe5f0; border-radius:10px; padding:.58rem .78rem; font-weight:700; color:#334155; }
 .flow-arrow { color:#94a3b8; font-size:1.1rem; }
@@ -68,6 +70,9 @@ st.markdown(
   .flow { display:block; }
   .flow-step { margin:.25rem 0; text-align:center; }
   .flow-arrow { display:block; text-align:center; }
+  .section-rule { margin:1.7rem 0 1rem; }
+  .section-subtitle { margin-bottom:.6rem; }
+  .chart-note { margin-bottom:1.25rem; }
 }
 </style>
 """,
