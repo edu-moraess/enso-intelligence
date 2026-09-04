@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   apply:
-    if: !startsWith(github.event.head_commit.message, 'chore: apply ENSO UI cleanup')
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore: apply ENSO UI cleanup') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,7 +20,6 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
 
           app = Path('app.py')
           text = app.read_text(encoding='utf-8')
@@ -32,7 +31,10 @@ jobs:
           text = text.replace(old_import, new_import, 1)
 
           marker = '    section_header("DATA & PROVENANCE", "Fontes, cobertura e princípios de versionamento da base operacional.")'
-          start = text.rfind('    st.markdown(\'<div class="section-rule"></div>\', unsafe_allow_html=True)\n', 0, text.find(marker))
+          marker_pos = text.find(marker)
+          if marker_pos < 0:
+              raise SystemExit('DATA & PROVENANCE section not found')
+          start = text.rfind('    st.markdown(\'<div class="section-rule"></div>\', unsafe_allow_html=True)\n', 0, marker_pos)
           if start < 0:
               raise SystemExit('DATA & PROVENANCE section start not found')
           replacement = '''    st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)\n    section_header("DATA & PROVENANCE", "Official NOAA datasets · Operational ENSO monitoring.")\n    st.markdown(\n        '<div class="chart-note">Recent official index values may be revised by NOAA.</div>',\n        unsafe_allow_html=True,\n    )\n    render_footer()\n'''
@@ -55,8 +57,7 @@ jobs:
                   continue
               out.append(lines[i])
               i += 1
-          ctext = ''.join(out)
-          comp.write_text(ctext, encoding='utf-8')
+          comp.write_text(''.join(out), encoding='utf-8')
           PY
 
           python -m compileall -q app.py src
