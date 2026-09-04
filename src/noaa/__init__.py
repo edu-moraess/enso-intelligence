@@ -14,8 +14,6 @@ from .cpc import load_oni as _parse_or_fetch_oni
 from .ersstv6 import get_ersst_status
 from .roni import fetch_roni as _fetch_roni
 from .roni import load_roni as _parse_or_fetch_roni
-from .soi import fetch_soi_live as _fetch_soi_live
-
 
 RONI_REQUIRED = ("date", "season", "year", "roni")
 ONI_REQUIRED = ("date", "season", "year", "oni")
@@ -25,11 +23,9 @@ WEEKLY_NINO_REQUIRED = (
     "nino34_sst", "nino34",
     "nino4_sst", "nino4",
 )
-SOI_REQUIRED = ("date", "year", "month", "soi")
 
 
 def _foundation_metadata(snapshot, df) -> SeriesMetadata:
-    """Expose foundation provenance through the existing metadata contract."""
     return SeriesMetadata(
         source=snapshot.source,
         dataset=snapshot.dataset,
@@ -44,7 +40,6 @@ def _foundation_metadata(snapshot, df) -> SeriesMetadata:
 
 
 def _foundation_error(dataset: str, exc: Exception) -> SeriesMetadata:
-    """Return the existing metadata contract when the foundation cannot be read."""
     return SeriesMetadata(
         source="NOAA CPC",
         dataset=dataset,
@@ -62,22 +57,14 @@ def _read_foundation(dataset, required_columns, label):
 
 
 def _with_weekly_nino_aliases(df: pd.DataFrame | None) -> pd.DataFrame | None:
-    """Expose the UI's historical SSTA aliases on canonical Foundation data.
-
-    The Foundation stores the canonical fields (e.g. ``nino34``) to keep the
-    CSV schema stable. The existing observatory UI uses explicit ``*_ssta``
-    names, so the aliases must also be restored when reading a committed
-    snapshot, not only when parsing NOAA's live ASCII response.
-    """
+    """Expose UI SSTA aliases while preserving canonical Foundation columns."""
     if df is None or df.empty:
         return df
-
     work = df.copy()
     for region in ("nino12", "nino3", "nino34", "nino4"):
-        source = region
         alias = f"{region}_ssta"
-        if source in work.columns and alias not in work.columns:
-            work[alias] = work[source]
+        if region in work.columns and alias not in work.columns:
+            work[alias] = pd.to_numeric(work[region], errors="coerce")
     return work
 
 
@@ -98,12 +85,7 @@ def fetch_nino_indices():
     return _with_weekly_nino_aliases(df), meta
 
 
-def fetch_soi():
-    """Load the latest committed NOAA CPC SOI foundation snapshot."""
-    return _read_foundation("soi", SOI_REQUIRED, "Southern Oscillation Index (SOI)")
-
-
-# Explicit ingestion entry points used by the external Cloudflare automation.
+# Explicit ingestion entry points retained for local Foundation tooling.
 def ingest_roni():
     return ingest_and_archive(_fetch_roni, dataset="roni", required_columns=RONI_REQUIRED)
 
@@ -114,10 +96,6 @@ def ingest_oni():
 
 def ingest_nino_indices():
     return ingest_and_archive(_fetch_nino_indices, dataset="weekly_nino", required_columns=WEEKLY_NINO_REQUIRED)
-
-
-def ingest_soi():
-    return ingest_and_archive(_fetch_soi_live, dataset="soi", required_columns=SOI_REQUIRED)
 
 
 # Parser/backward-compatible names remain available to tests and ingestion code.
@@ -143,6 +121,6 @@ __all__ = [
     "fetch_roni", "load_roni",
     "fetch_oni", "load_oni",
     "fetch_nino_indices", "load_nino_indices",
-    "fetch_soi", "ingest_roni", "ingest_oni", "ingest_nino_indices", "ingest_soi",
+    "ingest_roni", "ingest_oni", "ingest_nino_indices",
     "get_ersst_status",
 ]
