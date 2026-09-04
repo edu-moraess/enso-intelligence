@@ -198,21 +198,28 @@ async function publishDataset(env, dataset, rows, required, sourceUrl, datasetLa
 async function run(env) {
   if (!env.GITHUB_TOKEN) throw new Error("GITHUB_TOKEN secret is required");
   const results = [];
+  const errors = [];
   for (const [name, spec] of Object.entries(DATASETS)) {
-    const res = await fetch(spec.url, { headers: { "User-Agent": USER_AGENT } });
-    if (!res.ok) throw new Error(`NOAA ${name}: ${res.status}`);
-    const text = await res.text();
-    const rows = name === "roni" ? parseRonI(text) : name === "oni" ? parseOni(text) : name === "weekly_nino" ? parseWeekly(text) : parseSoi(text);
-    const label = name === "roni"
-      ? "Relative Oceanic Niño Index (RONI)"
-      : name === "oni"
-        ? "Oceanic Niño Index (ONI)"
-        : name === "weekly_nino"
-          ? "Weekly Niño region SSTA (OISST.v2.1, 1991–2020)"
-          : "Southern Oscillation Index (SOI)";
-    results.push(await publishDataset(env, name, rows, spec.required, spec.url, label));
+    try {
+      const res = await fetch(spec.url, { headers: { "User-Agent": USER_AGENT } });
+      if (!res.ok) throw new Error(`NOAA ${name}: ${res.status}`);
+      const text = await res.text();
+      const rows = name === "roni" ? parseRonI(text) : name === "oni" ? parseOni(text) : name === "weekly_nino" ? parseWeekly(text) : parseSoi(text);
+      const label = name === "roni"
+        ? "Relative Oceanic Niño Index (RONI)"
+        : name === "oni"
+          ? "Oceanic Niño Index (ONI)"
+          : name === "weekly_nino"
+            ? "Weekly Niño region SSTA (OISST.v2.1, 1991–2020)"
+            : "Southern Oscillation Index (SOI)";
+      results.push(await publishDataset(env, name, rows, spec.required, spec.url, label));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      errors.push({ dataset: name, error: message });
+      console.error(`Dataset ${name} failed: ${message}`);
+    }
   }
-  console.log(JSON.stringify({ foundation_version: FOUNDATION_VERSION, results }));
+  console.log(JSON.stringify({ foundation_version: FOUNDATION_VERSION, results, errors }));
 }
 
 export default {
