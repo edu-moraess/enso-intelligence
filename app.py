@@ -265,6 +265,7 @@ else:
 
     st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
     render_regime_timeline(roni_df)
+    st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
     section_header("PACIFIC CONDITIONS", "Anomalias semanais de SST relativa nas quatro regiões Niño publicadas pela NOAA CPC.")
     if nino_df is None or nino_df.empty:
         data_unavailable_message(nino_meta.source, nino_meta.message)
@@ -320,21 +321,19 @@ else:
     else:
         data_unavailable_message(oni_meta.source, oni_meta.message)
 
-    for col, title, body in zip(st.columns(3), ["Atmosphere", "Precipitation & Temperature", "Agriculture & Water"], ["ENSO altera a convecção tropical e a circulação atmosférica, produzindo teleconexões que se estendem além do Pacífico.", "As relações históricas entre ENSO, precipitação e temperatura variam conforme a região e a estação; não são determinísticas.", "Mudanças em precipitação e temperatura podem afetar água e agricultura, mas a resposta local depende das condições regionais."]):
-        with col:
-            st.markdown(f'<div class="surface"><h4>{title}</h4><p>{body}</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
+    section_header("METHODOLOGY", "Fluxo de transformação dos dados observados até a avaliação operacional do ENSO.")
+    st.markdown('<div class="flow"><div class="flow-step">Observed SST</div><div class="flow-arrow">→</div><div class="flow-step">SST Anomaly</div><div class="flow-arrow">→</div><div class="flow-step">Niño Regions</div><div class="flow-arrow">→</div><div class="flow-step">RONI / ONI</div><div class="flow-arrow">→</div><div class="flow-step">ENSO Assessment</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="executive-note"><strong>Guardrail:</strong> o observatório descreve condições observadas. Não produz previsão probabilística nem usa dados sintéticos, mock ou fallback para observações climáticas.</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
-    section_header("METHODOLOGY", "Da observação oceânica e atmosférica à avaliação operacional do ENSO.")
-    st.markdown('<div class="flow"><div class="flow-step">Observed SST</div><div class="flow-arrow">→</div><div class="flow-step">SST Anomaly</div><div class="flow-arrow">→</div><div class="flow-step">Niño Regions</div><div class="flow-arrow">→</div><div class="flow-step">RONI / ONI</div><div class="flow-arrow">→</div><div class="flow-step">SOI</div><div class="flow-arrow">→</div><div class="flow-step">ENSO Assessment</div></div>', unsafe_allow_html=True)
-    with st.expander("Methodological details"):
-        st.markdown("**Anomaly = observed SST − climatological reference.** Os produtos semanais Niño usam os produtos de SST relativa do NOAA CPC. RONI e ONI são séries relacionadas, mas metodologicamente distintas; o RONI é o indicador operacional principal deste observatório e o ONI é complementar. O SOI é um diagnóstico atmosférico da oscilação sul e é usado aqui como evidência de acoplamento, não como substituto da classificação operacional. Uma observação descreve condições atuais ou históricas; uma previsão estima condições futuras com incerteza.")
-    with st.expander("ENSO 101"):
-        st.markdown("ENSO é um padrão acoplado oceano-atmosfera no Pacífico tropical. El Niño é a fase quente, La Niña a fase fria e Neutral descreve condições entre os limiares operacionais. Niño 3.4 é uma região de referência no Pacífico equatorial. O SOI fornece contexto atmosférico complementar; valores negativos persistentes são geralmente associados a El Niño e positivos a La Niña.")
-
-    st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
-    section_header("DATA & PROVENANCE", "Produtos oficiais do NOAA Climate Prediction Center usados no observatório.")
-    for meta in [roni_meta, oni_meta, nino_meta, soi_meta]:
-        st.markdown(f'<div class="source-row"><strong>{meta.dataset}</strong><br><small>NOAA Climate Prediction Center (CPC) · dados oficiais</small></div>', unsafe_allow_html=True)
-    st.markdown('<div class="executive-note"><strong>Princípio do observatório:</strong> resultados são derivados de observações e índices publicados pela NOAA. O painel não usa dados sintéticos, conjuntos de fallback ou estimativas não identificadas.</div>', unsafe_allow_html=True)
-    st.caption("Source: NOAA Climate Prediction Center (CPC).")
+    section_header("DATA & PROVENANCE", "Fontes, cobertura e princípios de versionamento da base operacional.")
+    provenance = [
+        ("RONI", "NOAA CPC · Operational ENSO index", "Foundation snapshot · canonical CSV + manifest"),
+        ("ONI", "NOAA CPC · Oceanic Niño Index", "Foundation snapshot · canonical CSV + manifest"),
+        ("Weekly Niño region SSTA", "NOAA CPC · OISST.v2.1 · 1991–2020 base", "Foundation snapshot · canonical CSV + manifest"),
+        ("Atmospheric SOI", "NOAA CPC · Southern Oscillation Index", "Foundation snapshot when available"),
+    ]
+    for name, source, status in provenance:
+        st.markdown(f'<div class="source-row"><strong>{name}</strong><br><small>{source} · {status}</small></div>', unsafe_allow_html=True)
+    st.markdown('<div class="executive-note"><strong>Data policy:</strong> no synthetic observations, no mocked climate values, no hidden fallback dataset and no unknown estimates. Recent official index values may be revised by NOAA.</div>', unsafe_allow_html=True)
