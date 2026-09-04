@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
-import pandas as pd
-
 from src.data.foundation import ingest_and_archive
 
 from .cpc import fetch_nino_indices as _fetch_nino_indices
