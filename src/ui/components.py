@@ -34,6 +34,10 @@ def apply_light_theme() -> None:
         .badge-neu { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
         .flow-step { display: inline-block; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0.35rem 0.7rem; margin: 0.2rem; font-size: 0.85rem; color: #374151; }
         .section-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; margin-bottom: 0.35rem; }
+        .section-number { font-size: 0.68rem; font-weight: 750; letter-spacing: 0.12em; color: #2563eb; margin-bottom: 0.15rem; }
+        .section-title { margin: 0; color: #111827; font-size: 1.35rem; font-weight: 700; letter-spacing: -0.025em; }
+        .section-subtitle { color: #64748b; font-size: 0.84rem; margin-top: 0.2rem; }
+        .provenance-note { background: #f8fafc; border: 1px solid #dbe5f0; border-radius: 12px; padding: 0.85rem 1rem; color: #475569; font-size: 0.86rem; line-height: 1.5; }
         .block-container { padding-top: 1.25rem; max-width: 1100px; }
         hr { border: none; border-top: 1px solid #e5e7eb; margin: 1.5rem 0; }
         </style>
@@ -43,9 +47,26 @@ def apply_light_theme() -> None:
 
 
 def section_header(title: str, subtitle: Optional[str] = None) -> None:
-    st.markdown(f"### {title}")
+    """Render a compact numbered section header for the one-page observatory."""
+    numbered = {
+        "ENSO State": "01",
+        "RONI History": "02",
+        "Pacific Ocean": "03",
+        "Climate Context": "04",
+        "Methodology": "05",
+        "Data & Sources": "06",
+    }
+    number = numbered.get(title)
+    if number:
+        st.markdown(
+            f'<div class="section-number">{number}</div>'
+            f'<div class="section-title">{title}</div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(f'<div class="section-title">{title}</div>', unsafe_allow_html=True)
     if subtitle:
-        st.caption(subtitle)
+        st.markdown(f'<div class="section-subtitle">{subtitle}</div>', unsafe_allow_html=True)
 
 
 def metric_card(label: str, value: str, detail: Optional[str] = None) -> None:
