@@ -6,9 +6,6 @@ from typing import Optional
 
 import streamlit as st
 
-from src.noaa.roni import fetch_roni
-from src.ui.regime_timeline import build_regime_timeline
-
 
 def apply_light_theme() -> None:
     """Inject CSS for a clean light scientific observatory look."""
@@ -59,10 +56,11 @@ def apply_light_theme() -> None:
     )
 
 
-def render_regime_timeline() -> None:
-    """Render the RONI regime timeline as a dedicated UI component."""
-    regime_df, _ = fetch_roni()
-    regime_fig = build_regime_timeline(regime_df)
+def render_regime_timeline(roni_df) -> None:
+    """Render the RONI regime timeline using data already loaded by the app."""
+    from src.ui.regime_timeline import build_regime_timeline
+
+    regime_fig = build_regime_timeline(roni_df)
     if regime_fig is None:
         return
     st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
@@ -74,8 +72,6 @@ def render_regime_timeline() -> None:
 
 def section_header(title: str, subtitle: Optional[str] = None) -> None:
     """Render a clean section header for the one-page observatory."""
-    if title == "PACIFIC CONDITIONS":
-        render_regime_timeline()
     st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
     st.markdown(f'<div class="section-title">{title}</div>', unsafe_allow_html=True)
     if subtitle:
