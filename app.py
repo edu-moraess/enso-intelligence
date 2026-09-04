@@ -15,7 +15,7 @@ import streamlit as st
 
 from src.analysis.enso import classify_enso_state, classify_intensity, compute_recent_trend
 from src.noaa import fetch_nino_indices, fetch_oni, fetch_roni, fetch_soi
-from src.ui.components import apply_light_theme, data_unavailable_message, metric_card, render_regime_timeline, section_header
+from src.ui.components import apply_light_theme, data_unavailable_message, metric_card, render_footer, render_regime_timeline, section_header
 
 st.set_page_config(
     page_title="ENSO Intelligence | Climate Observatory",
@@ -207,7 +207,6 @@ else:
     with st.expander("Como interpretar"):
         st.markdown("O RONI mede a anomalia relativa da temperatura da superfície do mar na região Niño 3.4 em uma média móvel de três meses. Valores acima de +0,5 °C correspondem à faixa operacional de El Niño; valores abaixo de −0,5 °C correspondem à faixa de La Niña. As categorias de intensidade seguem as faixas de intensidade publicadas pelo CPC.")
 
-    # Atmospheric confirmation: descriptive only, using the observed SOI.
     ac1, ac2, ac3 = st.columns(3)
     with ac1:
         metric_card("Ocean", f"RONI {roni_val:+.2f} °C", f"{state.value} · {intensity.value}")
@@ -227,15 +226,13 @@ else:
     if soi_df is not None and not soi_df.empty and "soi" in soi_df.columns:
         soi_latest_date = pd.to_datetime(soi_df.iloc[-1]["date"])
         soi_latest = float(soi_df.iloc[-1]["soi"])
-        soi_3m = float(soi_df["soi"].astype(float).tail(3).mean()) if len(soi_df) >= 3 else None
-        if soi_3m is not None:
-            if state.value == "El Niño" and soi_3m < 0:
-                signal_text = "Oceanic and atmospheric signals are directionally consistent with El Niño."
-            elif state.value == "La Niña" and soi_3m > 0:
-                signal_text = "Oceanic and atmospheric signals are directionally consistent with La Niña."
-            else:
-                signal_text = "Oceanic and atmospheric signals are not fully aligned at the latest observation."
-            st.markdown(f'<div class="executive-note"><strong>Atmospheric confirmation:</strong> {signal_text} Latest SOI: {soi_latest:+.1f} · 3-month mean: {soi_3m:+.1f} · {soi_latest_date.strftime("%b %Y")}. The SOI is an atmospheric diagnostic, not an independent ENSO declaration.</div>', unsafe_allow_html=True)
+        soi_30 = soi_df.tail(30)
+        fig_soi = go.Figure()
+        fig_soi.add_trace(go.Scatter(x=pd.to_datetime(soi_30["date"]), y=soi_30["soi"], mode="lines+markers", line=dict(color="#64748b", width=1.8), marker=dict(size=5), hovertemplate="%{x|%d %b %Y}<br>SOI: %{y:+.1f}<extra></extra>"))
+        fig_soi.add_hline(y=0, line_color="#94a3b8", line_width=1)
+        fig_soi.update_layout(**chart_layout(240, "x"))
+        st.plotly_chart(fig_soi, use_container_width=True, config={"displaylogo": False, "responsive": True})
+        st.markdown(f'<div class="chart-meta">Último SOI observado · {soi_latest_date.strftime("%d %b %Y")} · {soi_latest:+.1f}</div>', unsafe_allow_html=True)
 
     analogues = find_historical_analogues(roni_df, window=8, top_n=3)
     if analogues:
@@ -329,3 +326,5 @@ else:
     st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
     section_header("DATA & PROVENANCE", "Official NOAA datasets · Operational ENSO monitoring.")
     st.markdown('<div class="provenance-note">Official NOAA datasets · Operational ENSO monitoring.<br><span style="color:#64748b;font-size:.78rem;">Recent official index values may be revised by NOAA.</span></div>', unsafe_allow_html=True)
+
+render_footer()
