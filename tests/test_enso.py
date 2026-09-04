@@ -133,6 +133,18 @@ class TestEventDetection:
         assert events[0].start_season == "DJF"
         assert events[0].end_season == "AMJ"
 
+    def test_gap_breaks_event_continuity(self):
+        df = pd.DataFrame([
+            {"season": "DJF", "year": 2000, "roni": 0.8},
+            {"season": "JFM", "year": 2000, "roni": 0.8},
+            {"season": "FMA", "year": 2000, "roni": 0.8},
+            {"season": "MAM", "year": 2000, "roni": 0.8},
+            {"season": "JJA", "year": 2000, "roni": 0.8},
+            {"season": "JAS", "year": 2000, "roni": 0.8},
+        ])
+        events = detect_enso_events(df, min_consecutive=5)
+        assert len(events) == 0
+
     def test_missing_required_columns_returns_empty(self):
         df = pd.DataFrame({"roni": [0.8, 0.9, 1.0, 0.8, 0.7]})
         assert detect_enso_events(df) == []
