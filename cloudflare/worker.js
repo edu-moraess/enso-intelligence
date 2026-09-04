@@ -30,7 +30,9 @@ function parseSoi(text) {
   const numberPattern = /[-+]?\d+(?:\.\d+)?/g;
 
   for (const line of lines.slice(headerIndex + 1)) {
-    if (/^\s*STANDARDIZED DATA/i.test(line)) break;
+    // NOAA's SOI source contains a second table headed "STANDARDIZED    DATA".
+    // Stop before parsing that table to avoid duplicate years/dates.
+    if (/^\s*STANDARDIZED\s+DATA/i.test(line)) break;
 
     const match = line.match(/^\s*(\d{4})(.*)$/);
     if (!match) continue;
