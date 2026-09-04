@@ -32,7 +32,8 @@ st.markdown(
 .block-container { max-width:1480px; padding:1.35rem 2.25rem 4.2rem; }
 .hero { background:linear-gradient(135deg,#ffffff 0%,#f3f7fb 100%); border:1px solid #dbe4ee; border-radius:22px; padding:1.65rem 2.2rem; margin-bottom:1rem; box-shadow:0 8px 30px rgba(15,23,42,.035); }
 .eyebrow { color:#2563eb; font-size:clamp(2.2rem,5vw,4rem); line-height:1; font-weight:800; letter-spacing:-.055em; text-transform:uppercase; }
-.hero p { color:#94a3b8; font-size:.72rem; font-style:italic; letter-spacing:.01em; margin:.18rem 0 0; }
+.hero-title { color:#0f172a; font-size:clamp(1.05rem,2vw,1.35rem); line-height:1.2; font-weight:750; letter-spacing:-.02em; margin-top:.25rem; }
+.hero p { color:#64748b; font-size:.78rem; letter-spacing:.01em; margin:.3rem 0 0; }
 .insight { background:#f8fafc; border:1px solid #e2e8f0; border-radius:13px; padding:.75rem 1rem; color:#334155; }
 .surface { background:#fff; border:1px solid #e2e8f0; border-radius:15px; padding:1.05rem 1.15rem; height:100%; }
 .surface h4 { margin:.02rem 0 .4rem; color:#0f172a; }
@@ -67,6 +68,7 @@ st.markdown(
   .block-container { padding:1rem .85rem 3rem; }
   .hero { padding:1.35rem 1.15rem; }
   .eyebrow { font-size:clamp(2rem,11vw,3rem); }
+  .hero-title { font-size:1rem; }
   .flow { display:block; }
   .flow-step { margin:.25rem 0; text-align:center; }
   .flow-arrow { display:block; text-align:center; }
@@ -159,7 +161,7 @@ nino_df, nino_meta = get_nino()
 soi_df, soi_meta = get_soi()
 
 st.markdown(
-    '<div class="hero"><div class="eyebrow">E.N.S.O</div><p>operational ENSO monitoring · NOAA official data</p></div>',
+    '<div class="hero"><div class="eyebrow">E.N.S.O</div><div class="hero-title">Operational ENSO Intelligence</div><p>A compact observational intelligence system for tracking ENSO state, evolution, and historical context.</p></div>',
     unsafe_allow_html=True,
 )
 
@@ -319,12 +321,12 @@ else:
         data_unavailable_message(oni_meta.source, oni_meta.message)
 
     st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
-    section_header("METHODOLOGY", "Fluxo de transformação dos dados observados até a avaliação operacional do ENSO.")
-    st.markdown('<div class="flow"><div class="flow-step">Observed SST</div><div class="flow-arrow">→</div><div class="flow-step">SST Anomaly</div><div class="flow-arrow">→</div><div class="flow-step">Niño Regions</div><div class="flow-arrow">→</div><div class="flow-step">RONI / ONI</div><div class="flow-arrow">→</div><div class="flow-step">ENSO Assessment</div></div>', unsafe_allow_html=True)
-    st.markdown('<div class="executive-note"><strong>Guardrail:</strong> o observatório descreve condições observadas. Não produz previsão probabilística nem usa dados sintéticos, mock ou fallback para observações climáticas.</div>', unsafe_allow_html=True)
+    section_header("METHODOLOGY", "How the observatory turns observed climate signals into a concise operational assessment.")
+    st.markdown('<div class="flow"><div class="flow-step">SIGNAL · RONI</div><div class="flow-arrow">→</div><div class="flow-step">REGIME · ±0.5°C</div><div class="flow-arrow">→</div><div class="flow-step">INTENSITY</div><div class="flow-arrow">→</div><div class="flow-step">EVOLUTION</div><div class="flow-arrow">→</div><div class="flow-step">HISTORICAL CONTEXT</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="executive-note"><strong>SIGNAL</strong> · RONI is the operational ENSO signal. ONI and regional Niño indices provide complementary context.<br><strong>REGIME</strong> · El Niño ≥ +0.5°C · Neutral −0.5°C to +0.5°C · La Niña ≤ −0.5°C<br><strong>INTENSITY</strong> · Weak · Moderate · Strong · Very Strong<br><strong>EVOLUTION</strong> · Recent RONI changes indicate strengthening, weakening, or stability.<br><strong>HISTORICAL CONTEXT</strong> · 8-observation trajectory comparison using RMSE-based similarity.<br><strong>GUARDRAIL</strong> · Historical analogues are descriptive, not predictive.</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
-    section_header("DATA & PROVENANCE", "Official NOAA datasets · Operational ENSO monitoring.")
-    st.markdown('<div class="provenance-note">Official NOAA datasets · Operational ENSO monitoring.<br><span style="color:#64748b;font-size:.78rem;">Recent official index values may be revised by NOAA.</span></div>', unsafe_allow_html=True)
+    section_header("DATA & PROVENANCE", "Datasets and attribution used by the observatory.")
+    st.markdown('<div class="provenance-note">RONI · ONI · Weekly Niño indices · NOAA CPC / NCEI / PSL<br><span style="color:#64748b;font-size:.78rem;">Observation periods are shown separately from retrieval timestamps. Official values may be revised by NOAA.</span></div>', unsafe_allow_html=True)
 
 render_footer()
