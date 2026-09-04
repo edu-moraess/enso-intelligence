@@ -13,10 +13,8 @@ from typing import List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from src.data.models import (
-    THRESHOLD_EL_NINO,
-    THRESHOLD_LA_NINA,
-)
+from src.data.models import THRESHOLD_EL_NINO, THRESHOLD_LA_NINA
+
 
 class ENSOState(str, Enum):
     EL_NINO = "El Niño"
@@ -57,10 +55,7 @@ def classify_intensity(value: float) -> Intensity:
     return Intensity.WEAK
 
 
-def compute_recent_trend(
-    series: pd.Series,
-    n_seasons: int = 3,
-) -> Tuple[str, Optional[float]]:
+def compute_recent_trend(series: pd.Series, n_seasons: int = 3) -> Tuple[str, Optional[float]]:
     clean = series.dropna()
     if len(clean) < n_seasons:
         return "insufficient data", None
@@ -86,6 +81,14 @@ class ENSOEvent:
     intensity: str
 
 
+_SEASON_ORDER = {
+    season: rank
+    for rank, season in enumerate(
+        ["DJF", "JFM", "FMA", "MAM", "AMJ", "MJJ", "JJA", "JAS", "ASO", "SON", "OND", "NDJ"]
+    )
+}
+
+
 def detect_enso_events(
     df: pd.DataFrame,
     value_col: str = "roni",
@@ -93,12 +96,26 @@ def detect_enso_events(
     year_col: str = "year",
     min_consecutive: int = 5,
 ) -> List[ENSOEvent]:
-    if df is None or df.empty or value_col not in df.columns:
+    """Detect contiguous non-neutral RONI regimes of at least N seasons.
+
+    The input is normalized into chronological order before classification so
+    event detection does not depend on the caller's row ordering.
+    """
+    required = {value_col, season_col, year_col}
+    if df is None or df.empty or not required.issubset(df.columns):
         return []
+    if min_consecutive < 1:
+        return []
+
     work = df[[season_col, year_col, value_col]].copy()
-    work = work.dropna(subset=[value_col]).reset_index(drop=True)
+    work[value_col] = pd.to_numeric(work[value_col], errors="coerce")
+    work[year_col] = pd.to_numeric(work[year_col], errors="coerce")
+    work["_season_rank"] = work[season_col].map(_SEASON_ORDER)
+    work = work.dropna(subset=[value_col, year_col, "_season_rank"])
     if work.empty:
         return []
+    work = work.sort_values([year_col, "_season_rank"]).reset_index(drop=True)
+
     values = work[value_col].astype(float).values
     states = np.array([classify_enso_state(v).value for v in values])
     events: List[ENSOEvent] = []
@@ -115,10 +132,9 @@ def detect_enso_events(
         length = j - i
         if length >= min_consecutive:
             segment = work.iloc[i:j]
-            peak_idx = segment[value_col].abs().idxmax()
-            peak_row = segment.loc[peak_idx]
+            peak_pos = int(np.argmax(np.abs(segment[value_col].to_numpy(dtype=float))))
+            peak_row = segment.iloc[peak_pos]
             peak_val = float(peak_row[value_col])
-            intensity = classify_intensity(peak_val).value
             events.append(
                 ENSOEvent(
                     event_type=current,
@@ -129,7 +145,7 @@ def detect_enso_events(
                     duration_seasons=length,
                     peak_value=peak_val,
                     peak_season=str(peak_row[season_col]),
-                    intensity=intensity,
+                    intensity=classify_intensity(peak_val).value,
                 )
             )
         i = j

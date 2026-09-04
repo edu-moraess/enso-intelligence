@@ -84,9 +84,9 @@ def utc_now() -> datetime:
 #   La Niña  : index <= -0.5 °C
 #   Neutral  : otherwise
 #
-# Intensity bands below are a **project convention** for communication,
-# aligned with commonly used literature ranges for ONI/RONI magnitude.
-# They are NOT an official NOAA categorical product.
+# Magnitude bands below are aligned with the NOAA CPC strength thresholds
+# used for RONI communication. They describe index magnitude; they do not
+# by themselves constitute an official event declaration.
 # Half-open intervals: [low, high)
 #   Weak         : [0.5, 1.0)
 #   Moderate     : [1.0, 1.5)

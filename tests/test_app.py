@@ -2,20 +2,29 @@
 from pathlib import Path
 
 
-APP = (Path(__file__).parents[1] / "app.py").read_text(encoding="utf-8")
+ROOT = Path(__file__).parents[1]
+APP = (ROOT / "app.py").read_text(encoding="utf-8")
+COMPONENTS = (ROOT / "src" / "ui" / "components.py").read_text(encoding="utf-8")
 
 
 def test_main_page_contains_required_observatory_sections():
+    # Headings rendered directly from app.py
     for heading in (
-        "ENSO State",
-        "RONI History",
-        "Pacific Ocean",
-        "Climate Context",
-        "Methodology",
-        "RONI vs ONI",
-        "Data & Sources",
+        "CURRENT CONDITIONS",
+        "ENSO SIGNAL",
+        "HISTORICAL ANALOGUES",
+        "PACIFIC CONDITIONS",
+        "ANALYTICAL VIEW",
+        "METHODOLOGY",
+        "DATA & PROVENANCE",
     ):
         assert heading in APP
+
+    # Regime timeline is owned by components.render_regime_timeline and
+    # invoked explicitly from app.py with the already-loaded RONI frame.
+    assert "render_regime_timeline(roni_df)" in APP
+    assert "ENSO REGIME TIMELINE" in COMPONENTS
+
     assert "Use the sidebar to navigate" not in APP
     assert "st.sidebar" not in APP
     assert "stSidebar" in APP
@@ -41,9 +50,12 @@ def test_main_page_handles_source_outages_without_fallback_values():
 
 
 def test_refined_ui_keeps_scientific_guardrails():
-    assert "three-month" in APP
+    # Operational wording actually present in the current one-page UI
+    assert "3-month running mean" in APP
     assert "+0.5" in APP
     assert "−0.5" in APP
     assert "intensity" in APP
     assert "not a category official" not in APP
-    assert "does not represent forecast error" in APP
+    # Forecast disclaimer is written in Portuguese in the product copy
+    assert "não representam erro de previsão" in APP
+    assert "not a forecast" in APP

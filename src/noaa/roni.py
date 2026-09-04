@@ -6,7 +6,6 @@ Source: https://www.cpc.ncep.noaa.gov/data/indices/RONI.ascii.txt
 
 from __future__ import annotations
 
-import io
 import logging
 from datetime import datetime
 from typing import Optional, Tuple
@@ -23,7 +22,6 @@ SEASON_ORDER = [
     "JJA", "JAS", "ASO", "SON", "OND", "NDJ",
 ]
 
-# Approximate mid-month of the central month for each season label
 SEASON_CENTRAL_MONTH = {
     "DJF": 1, "JFM": 2, "FMA": 3, "MAM": 4, "AMJ": 5, "MJJ": 6,
     "JJA": 7, "JAS": 8, "ASO": 9, "SON": 10, "OND": 11, "NDJ": 12,
@@ -31,9 +29,8 @@ SEASON_CENTRAL_MONTH = {
 
 
 def _season_to_date(season: str, year: int) -> datetime:
-    """Map seasonal label + year to a representative datetime (mid-month)."""
+    """Map seasonal label + year to a representative central-month date."""
     month = SEASON_CENTRAL_MONTH.get(season, 6)
-    # For DJF the year is the year of January/February
     return datetime(year, month, 15)
 
 
@@ -41,14 +38,7 @@ def fetch_roni(
     url: Optional[str] = None,
     timeout: int = NOAAConfig.HTTP_TIMEOUT,
 ) -> Tuple[Optional[pd.DataFrame], SeriesMetadata]:
-    """Download and parse RONI ASCII file from NOAA CPC.
-
-    Returns
-    -------
-    df : pd.DataFrame or None
-        Columns: season, year, roni, date
-    meta : SeriesMetadata
-    """
+    """Download and parse the live RONI ASCII file from NOAA CPC."""
     url = url or NOAAConfig.RONI_URL
     meta = SeriesMetadata(
         source="NOAA CPC",
@@ -90,15 +80,8 @@ def fetch_roni(
 
 
 def _parse_roni_text(text: str) -> pd.DataFrame:
-    """Parse RONI.ascii.txt content.
-
-    Expected format (header + rows):
-        SEAS   YR  ANOM
-        DJF  1950 -1.19
-        ...
-    """
+    """Parse RONI.ascii.txt content into chronological records."""
     lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-    # Skip header if present
     data_lines = []
     for ln in lines:
         parts = ln.split()
@@ -121,10 +104,9 @@ def _parse_roni_text(text: str) -> pd.DataFrame:
     df["date"] = [
         _season_to_date(s, y) for s, y in zip(df["season"], df["year"])
     ]
-    df = df.sort_values("date").reset_index(drop=True)
-    return df
+    return df.sort_values("date").reset_index(drop=True)
 
 
 def load_roni(cached_df: Optional[pd.DataFrame] = None) -> Tuple[Optional[pd.DataFrame], SeriesMetadata]:
-    """Convenience wrapper; prefers live fetch."""
+    """Convenience wrapper; live NOAA data remains the source of truth."""
     return fetch_roni()
