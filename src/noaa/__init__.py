@@ -14,7 +14,7 @@ from .cpc import load_oni as _parse_or_fetch_oni
 from .ersstv6 import get_ersst_status
 from .roni import fetch_roni as _fetch_roni
 from .roni import load_roni as _parse_or_fetch_roni
-from .soi import fetch_soi
+from .soi import fetch_soi_live as _fetch_soi_live
 
 
 RONI_REQUIRED = ("date", "season", "year", "roni")
@@ -25,6 +25,7 @@ WEEKLY_NINO_REQUIRED = (
     "nino34_sst", "nino34",
     "nino4_sst", "nino4",
 )
+SOI_REQUIRED = ("date", "year", "month", "soi")
 
 
 def _foundation_metadata(snapshot, df) -> SeriesMetadata:
@@ -61,17 +62,14 @@ def _read_foundation(dataset, required_columns, label):
 
 
 def fetch_roni():
-    """Load the latest committed RONI foundation snapshot for the observatory."""
     return _read_foundation("roni", RONI_REQUIRED, "Relative Oceanic Niño Index (RONI)")
 
 
 def fetch_oni():
-    """Load the latest committed ONI foundation snapshot for the observatory."""
     return _read_foundation("oni", ONI_REQUIRED, "Oceanic Niño Index (ONI)")
 
 
 def fetch_nino_indices():
-    """Load the latest committed weekly Niño foundation snapshot for the observatory."""
     return _read_foundation(
         "weekly_nino",
         WEEKLY_NINO_REQUIRED,
@@ -79,33 +77,29 @@ def fetch_nino_indices():
     )
 
 
+def fetch_soi():
+    """Load the latest committed NOAA CPC SOI foundation snapshot."""
+    return _read_foundation("soi", SOI_REQUIRED, "Southern Oscillation Index (SOI)")
+
+
 # Explicit ingestion entry points used by the external Cloudflare automation.
-# They remain live NOAA readers and are deliberately separate from the
-# observatory fetch_* functions above.
 def ingest_roni():
-    return ingest_and_archive(
-        _fetch_roni,
-        dataset="roni",
-        required_columns=RONI_REQUIRED,
-    )
+    return ingest_and_archive(_fetch_roni, dataset="roni", required_columns=RONI_REQUIRED)
 
 
 def ingest_oni():
-    return ingest_and_archive(
-        _fetch_oni,
-        dataset="oni",
-        required_columns=ONI_REQUIRED,
-    )
+    return ingest_and_archive(_fetch_oni, dataset="oni", required_columns=ONI_REQUIRED)
 
 
 def ingest_nino_indices():
-    return ingest_and_archive(
-        _fetch_nino_indices,
-        dataset="weekly_nino",
-        required_columns=WEEKLY_NINO_REQUIRED,
-    )
+    return ingest_and_archive(_fetch_nino_indices, dataset="weekly_nino", required_columns=WEEKLY_NINO_REQUIRED)
 
 
+def ingest_soi():
+    return ingest_and_archive(_fetch_soi_live, dataset="soi", required_columns=SOI_REQUIRED)
+
+
+# Parser/backward-compatible names remain available to tests and ingestion code.
 def load_roni(text=None):
     if text is not None:
         return _parse_or_fetch_roni(text)
@@ -125,15 +119,9 @@ def load_nino_indices(text=None):
 
 
 __all__ = [
-    "fetch_roni",
-    "load_roni",
-    "fetch_oni",
-    "load_oni",
-    "fetch_nino_indices",
-    "load_nino_indices",
-    "fetch_soi",
-    "ingest_roni",
-    "ingest_oni",
-    "ingest_nino_indices",
+    "fetch_roni", "load_roni",
+    "fetch_oni", "load_oni",
+    "fetch_nino_indices", "load_nino_indices",
+    "fetch_soi", "ingest_roni", "ingest_oni", "ingest_nino_indices", "ingest_soi",
     "get_ersst_status",
 ]
