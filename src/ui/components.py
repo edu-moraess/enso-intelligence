@@ -25,6 +25,8 @@ def apply_light_theme() -> None:
         .current-condition-card.state-card .metric-value { font-size: 1.9rem !important; font-weight: 800 !important; letter-spacing: -0.035em; }
         .current-condition-card.roni-card .metric-value { font-size: 1.85rem !important; font-weight: 800 !important; }
         .current-condition-card .metric-detail { margin-top: .38rem !important; }
+        .obs-footer { border-top: 1px solid #e5e7eb; margin-top: 2.5rem; padding: 1rem 0 .35rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; color: #94a3b8; font-size: .7rem; line-height: 1.5; }
+        .obs-footer-brand { color: #64748b; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }
         .state-el-nino { color: #b91c1c; font-weight: 800; font-size: 2rem; letter-spacing: -0.03em; }
         .state-la-nina { color: #1d4ed8; font-weight: 800; font-size: 2rem; letter-spacing: -0.03em; }
         .state-neutral { color: #374151; font-weight: 800; font-size: 2rem; letter-spacing: -0.03em; }
@@ -53,6 +55,7 @@ def apply_light_theme() -> None:
             .current-condition-card .metric-value { font-size: 1.48rem !important; }
             .current-condition-card.state-card .metric-value { font-size: 1.62rem !important; }
             .current-condition-card.roni-card .metric-value { font-size: 1.58rem !important; }
+            .obs-footer { align-items: flex-start; flex-direction: column; gap: .25rem; margin-top: 2rem; }
             .section-title { font-size: 1.18rem; }
             .section-subtitle { font-size: .78rem; line-height: 1.4; }
             .section-rule { margin: 1.25rem 0 .85rem; }
@@ -99,6 +102,17 @@ def metric_card(label: str, value: str, detail: Optional[str] = None) -> None:
         f'<div class="metric-value" style="font-size:1.55rem;font-weight:750;color:#111827;line-height:1.15;">{value}</div>'
         f'{f"<div class=\"metric-detail\" style=\"color:#6b7280;font-size:.82rem;margin-top:.3rem;\">{detail}</div>" if detail else ""}'
         f'</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def render_footer() -> None:
+    """Render a minimal data-provenance and product attribution footer."""
+    st.markdown(
+        '<div class="obs-footer">'
+        '<div>Official NOAA data · CPC · PSL · NCEI</div>'
+        '<div class="obs-footer-brand">ARQTECH LABS · <span style="font-weight:400;letter-spacing:0;">© 2026</span></div>'
+        '</div>',
         unsafe_allow_html=True,
     )
 
