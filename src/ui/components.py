@@ -59,8 +59,8 @@ def apply_light_theme() -> None:
         .executive-note { line-height: 1.7; }
         .analogue-card { min-height: 82px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; }
 
-        /* Keep Plotly range controls visually above the plotting field. */
-        .js-plotly-plot .rangeselector { transform: translateY(-8px); }
+        /* Keep Plotly range controls fully visible without shifting them outside the plot container. */
+        .js-plotly-plot .rangeselector { transform: none !important; }
 
         @media (min-width:701px) and (max-width:1100px) {
             .flow { flex-wrap: wrap !important; }
@@ -147,11 +147,3 @@ def data_unavailable_message(source: str = "NOAA", detail: Optional[str] = None)
     if detail:
         msg += f"\n\n_{detail}_"
     st.warning(msg)
-
-
-def enso_state_class(state: str) -> str:
-    return {"El Niño": "state-el-nino", "La Niña": "state-la-nina", "Neutral": "state-neutral"}.get(state, "state-neutral")
-
-
-def state_emoji(state: str) -> str:
-    return {"El Niño": "🔴", "La Niña": "🔵", "Neutral": "⚪"}.get(state, "⚪")
