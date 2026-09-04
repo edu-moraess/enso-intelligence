@@ -94,7 +94,18 @@ def get_oni():
 
 @st.cache_data(ttl=300, show_spinner="Carregando índices Niño da Foundation…")
 def get_nino():
-    return fetch_nino_indices()
+    """Load canonical weekly Niño data and expose UI-compatible SSTA aliases."""
+    df, meta = fetch_nino_indices()
+
+    if df is not None and not df.empty:
+        df = df.copy()
+        for region in ("nino12", "nino3", "nino34", "nino4"):
+            canonical = region
+            alias = f"{region}_ssta"
+            if alias not in df.columns and canonical in df.columns:
+                df[alias] = pd.to_numeric(df[canonical], errors="coerce")
+
+    return df, meta
 
 
 @st.cache_data(ttl=300, show_spinner="Carregando SOI da Foundation…")
