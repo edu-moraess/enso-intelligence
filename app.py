@@ -14,7 +14,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from src.analysis.enso import classify_enso_state, classify_intensity, compute_recent_trend
-from src.noaa import fetch_nino_indices, fetch_oni, fetch_roni
+from src.noaa import fetch_nino_indices, fetch_oni, fetch_roni, fetch_soi
 from src.ui.components import apply_light_theme, data_unavailable_message, metric_card, render_regime_timeline, section_header
 
 st.set_page_config(
@@ -95,6 +95,11 @@ def get_nino():
     return fetch_nino_indices()
 
 
+@st.cache_data(ttl=300, show_spinner="Carregando SOI da Foundation…")
+def get_soi():
+    return fetch_soi()
+
+
 def window_start(x: pd.Series, years: int) -> pd.Timestamp:
     return max(x.iloc[0], x.iloc[-1] - pd.DateOffset(years=years))
 
@@ -116,28 +121,18 @@ def chart_layout(height: int, hovermode: str = "x", legend=None):
 
 
 def find_historical_analogues(df: pd.DataFrame, window: int = 8, top_n: int = 3) -> list[dict]:
-    """Find historical RONI windows with similar recent trajectories.
-
-    Similarity is based on the path of RONI changes from the first point of
-    each window. The current window is excluded from the candidate history.
-    This is descriptive pattern matching, not a forecast.
-    """
+    """Find historical RONI windows with similar recent trajectories."""
     if df is None or df.empty or "roni" not in df.columns:
         return []
-
     cols = [c for c in ["date", "season", "year", "roni"] if c in df.columns]
     work = df[cols].copy().dropna(subset=["roni"]).reset_index(drop=True)
     if len(work) < window * 2:
         return []
-
     values = work["roni"].astype(float).to_numpy()
     current = values[-window:]
     current_path = current - current[0]
     current_state = classify_enso_state(float(current[-1]))
     candidates: list[dict] = []
-
-    # Leave a small historical gap so the analogue cannot be an immediately
-    # preceding continuation of the current trajectory.
     max_end = len(work) - window - 3
     for end in range(window - 1, max_end + 1):
         start = end - window + 1
@@ -146,17 +141,10 @@ def find_historical_analogues(df: pd.DataFrame, window: int = 8, top_n: int = 3)
             continue
         path = candidate - candidate[0]
         rmse = float(np.sqrt(np.mean((path - current_path) ** 2)))
-        candidates.append({
-            "start": work.iloc[start],
-            "end": work.iloc[end],
-            "values": candidate,
-            "rmse": rmse,
-        })
-
+        candidates.append({"start": work.iloc[start], "end": work.iloc[end], "values": candidate, "rmse": rmse})
     candidates.sort(key=lambda item: item["rmse"])
     selected: list[dict] = []
     for candidate in candidates:
-        # Avoid returning several nearly identical, overlapping windows.
         if any(abs(int(candidate["end"]["year"]) - int(item["end"]["year"])) <= 1 for item in selected):
             continue
         selected.append(candidate)
@@ -168,6 +156,7 @@ def find_historical_analogues(df: pd.DataFrame, window: int = 8, top_n: int = 3)
 roni_df, roni_meta = get_roni()
 oni_df, oni_meta = get_oni()
 nino_df, nino_meta = get_nino()
+soi_df, soi_meta = get_soi()
 
 st.markdown(
     '<div class="hero"><div class="eyebrow">E.N.S.O</div><p>operational ENSO monitoring · NOAA official data</p></div>',
@@ -185,7 +174,6 @@ else:
     trend_label, trend_delta = compute_recent_trend(roni_df["roni"], n_seasons=3)
     state_color = {"El Niño": "#b91c1c", "La Niña": "#1d4ed8", "Neutral": "#15803d"}[state.value]
 
-    # Current conditions
     section_header("CURRENT CONDITIONS", "Condição atual baseada no RONI mais recente disponível.")
     c1, c2, c3, c4 = st.columns(4)
     with c1:
@@ -196,14 +184,10 @@ else:
         metric_card("Último período", period, "3-month running mean")
     with c4:
         metric_card("3-season change", f"{trend_delta:+.2f} °C" if trend_delta is not None else "—", trend_label)
-    st.markdown(
-        f'<div class="insight" style="border-left:4px solid {state_color};"><strong>{state.value}</strong> · {intensity.value} intensity · RONI {roni_val:+.2f} °C · {period}</div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown(f'<div class="insight" style="border-left:4px solid {state_color};"><strong>{state.value}</strong> · {intensity.value} intensity · RONI {roni_val:+.2f} °C · {period}</div>', unsafe_allow_html=True)
 
-    # ENSO signal
     st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
-    section_header("ENSO SIGNAL", "RONI histórico · anomalia relativa de SST no Niño 3.4 em média móvel de três meses.")
+    section_header("ENSO SIGNAL", "Sinal oceânico e atmosférico observado no sistema ENSO.")
     x = pd.to_datetime(roni_df["date"]) if "date" in roni_df.columns else pd.to_datetime(roni_df.index)
     ymin = min(-2.2, float(roni_df["roni"].min()) - 0.2)
     ymax = max(2.2, float(roni_df["roni"].max()) + 0.2)
@@ -217,22 +201,42 @@ else:
     fig.add_trace(go.Scatter(x=x, y=roni_df["roni"], mode="lines", name="RONI", line=dict(color="#0f766e", width=2.5), hovertemplate="%{x|%b %Y}<br>RONI: %{y:+.2f} °C<extra></extra>"))
     fig.add_trace(go.Scatter(x=[x.iloc[-1]], y=[roni_val], mode="markers", name="Latest", marker=dict(size=10, color="#0f172a"), hovertemplate=f"{period}<br>RONI: {roni_val:+.2f} °C<extra></extra>"))
     lay = chart_layout(455)
-    lay.update(
-        yaxis=dict(title="RONI (°C)", range=[ymin, ymax], zeroline=False, gridcolor="#edf2f7"),
-        xaxis=dict(
-            range=[window_start(x, 30), x.iloc[-1]],
-            showgrid=False,
-            rangeslider=dict(visible=True, thickness=0.045),
-            rangeselector=dict(buttons=[dict(count=10, label="10Y", step="year", stepmode="backward"), dict(count=30, label="30Y", step="year", stepmode="backward"), dict(step="all", label="All")]),
-        ),
-        showlegend=False,
-    )
+    lay.update(yaxis=dict(title="RONI (°C)", range=[ymin, ymax], zeroline=False, gridcolor="#edf2f7"), xaxis=dict(range=[window_start(x, 30), x.iloc[-1]], showgrid=False, rangeslider=dict(visible=True, thickness=0.045), rangeselector=dict(buttons=[dict(count=10, label="10Y", step="year", stepmode="backward"), dict(count=30, label="30Y", step="year", stepmode="backward"), dict(step="all", label="All")])), showlegend=False)
     fig.update_layout(**lay)
     st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False, "responsive": True})
     with st.expander("Como interpretar"):
         st.markdown("O RONI mede a anomalia relativa da temperatura da superfície do mar na região Niño 3.4 em uma média móvel de três meses. Valores acima de +0,5 °C correspondem à faixa operacional de El Niño; valores abaixo de −0,5 °C correspondem à faixa de La Niña. As categorias de intensidade seguem as faixas de intensidade publicadas pelo CPC.")
 
-    # Historical analogues
+    # Atmospheric confirmation: descriptive only, using the observed SOI.
+    ac1, ac2, ac3 = st.columns(3)
+    with ac1:
+        metric_card("Ocean", f"RONI {roni_val:+.2f} °C", f"{state.value} · {intensity.value}")
+    with ac2:
+        if soi_df is not None and not soi_df.empty and "soi" in soi_df.columns:
+            soi_latest = float(soi_df.iloc[-1]["soi"])
+            metric_card("Atmosphere", f"SOI {soi_latest:+.1f}", "negative · El Niño-consistent")
+        else:
+            metric_card("Atmosphere", "—", "SOI snapshot unavailable")
+    with ac3:
+        if soi_df is not None and len(soi_df) >= 3 and "soi" in soi_df.columns:
+            soi_3m = float(soi_df["soi"].astype(float).tail(3).mean())
+            persistence = "El Niño-consistent" if soi_3m < 0 else "La Niña-consistent" if soi_3m > 0 else "Neutral"
+            metric_card("Persistence", f"3-mo SOI {soi_3m:+.1f}", persistence)
+        else:
+            metric_card("Persistence", "—", "insufficient SOI history")
+    if soi_df is not None and not soi_df.empty and "soi" in soi_df.columns:
+        soi_latest_date = pd.to_datetime(soi_df.iloc[-1]["date"])
+        soi_latest = float(soi_df.iloc[-1]["soi"])
+        soi_3m = float(soi_df["soi"].astype(float).tail(3).mean()) if len(soi_df) >= 3 else None
+        if soi_3m is not None:
+            if state.value == "El Niño" and soi_3m < 0:
+                signal_text = "Oceanic and atmospheric signals are directionally consistent with El Niño."
+            elif state.value == "La Niña" and soi_3m > 0:
+                signal_text = "Oceanic and atmospheric signals are directionally consistent with La Niña."
+            else:
+                signal_text = "Oceanic and atmospheric signals are not fully aligned at the latest observation."
+            st.markdown(f'<div class="executive-note"><strong>Atmospheric confirmation:</strong> {signal_text} Latest SOI: {soi_latest:+.1f} · 3-month mean: {soi_3m:+.1f} · {soi_latest_date.strftime("%b %Y")}. The SOI is an atmospheric diagnostic, not an independent ENSO declaration.</div>', unsafe_allow_html=True)
+
     analogues = find_historical_analogues(roni_df, window=8, top_n=3)
     if analogues:
         st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
@@ -241,55 +245,24 @@ else:
         current_path = current_vals - current_vals[0]
         positions = list(range(len(current_path)))
         af = go.Figure()
-        af.add_trace(go.Scatter(
-            x=positions,
-            y=current_path,
-            mode="lines+markers",
-            name="Current",
-            line=dict(color="#0f172a", width=3),
-            marker=dict(size=6),
-            hovertemplate="Current<br>Step %{x}<br>Change: %{y:+.2f} °C<extra></extra>",
-        ))
-        for idx, analogue in enumerate(analogues, start=1):
+        af.add_trace(go.Scatter(x=positions, y=current_path, mode="lines+markers", name="Current", line=dict(color="#0f172a", width=3), marker=dict(size=6), hovertemplate="Current<br>Step %{x}<br>Change: %{y:+.2f} °C<extra></extra>"))
+        for analogue in analogues:
             vals = analogue["values"]
             path = vals - vals[0]
-            start = analogue["start"]
-            end = analogue["end"]
+            start, end = analogue["start"], analogue["end"]
             label = f"{int(start['year'])}–{int(end['year'])}"
-            af.add_trace(go.Scatter(
-                x=positions,
-                y=path,
-                mode="lines",
-                name=label,
-                line=dict(width=1.7, dash="dot"),
-                hovertemplate=f"{label}<br>Step %{{x}}<br>Change: %{{y:+.2f}} °C<extra></extra>",
-            ))
+            af.add_trace(go.Scatter(x=positions, y=path, mode="lines", name=label, line=dict(width=1.7, dash="dot"), hovertemplate=f"{label}<br>Step %{{x}}<br>Change: %{{y:+.2f}} °C<extra></extra>"))
         al = chart_layout(285, "x")
-        al.update(
-            xaxis=dict(
-                title="Relative position in 8-season window",
-                tickmode="array",
-                tickvals=positions,
-                ticktext=["T−7", "T−6", "T−5", "T−4", "T−3", "T−2", "T−1", "T0"],
-                showgrid=False,
-            ),
-            yaxis=dict(title="Change from window start (°C)", zeroline=True, gridcolor="#edf2f7"),
-            legend=dict(orientation="h", y=1.08, x=0),
-        )
+        al.update(xaxis=dict(title="Relative position in 8-season window", tickmode="array", tickvals=positions, ticktext=["T−7", "T−6", "T−5", "T−4", "T−3", "T−2", "T−1", "T0"], showgrid=False), yaxis=dict(title="Change from window start (°C)", zeroline=True, gridcolor="#edf2f7"), legend=dict(orientation="h", y=1.08, x=0))
         af.update_layout(**al)
         st.plotly_chart(af, use_container_width=True, config={"displaylogo": False, "responsive": True})
         cols = st.columns(len(analogues))
         for col, analogue in zip(cols, analogues):
-            start = analogue["start"]
-            end = analogue["end"]
+            start, end = analogue["start"], analogue["end"]
             with col:
-                st.markdown(
-                    f'<div class="analogue-card"><strong>{int(start["year"])}–{int(end["year"])}</strong><br><small>trajectory RMSE · {analogue["rmse"]:.2f} °C</small></div>',
-                    unsafe_allow_html=True,
-                )
+                st.markdown(f'<div class="analogue-card"><strong>{int(start["year"])}–{int(end["year"])}</strong><br><small>trajectory RMSE · {analogue["rmse"]:.2f} °C</small></div>', unsafe_allow_html=True)
         st.markdown('<div class="executive-note"><strong>Como ler:</strong> estes são análogos históricos de trajetória, não previsões. A semelhança é calculada sobre a evolução do RONI dentro de uma janela de oito períodos; ela não implica que os próximos períodos reproduzirão o passado.</div>', unsafe_allow_html=True)
 
-    # Pacific conditions
     st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
     render_regime_timeline(roni_df)
     section_header("PACIFIC CONDITIONS", "Anomalias semanais de SST relativa nas quatro regiões Niño publicadas pela NOAA CPC.")
@@ -312,21 +285,12 @@ else:
             fig.add_hline(y=0, line_color="#94a3b8", line_width=1)
             nino_x = pd.to_datetime(nino_df["date"])
             lay = chart_layout(350, "x unified", dict(orientation="h", y=1.07, x=0))
-            lay.update(
-                yaxis=dict(title="Relative SST anomaly (°C)", zeroline=False, gridcolor="#edf2f7"),
-                xaxis=dict(
-                    range=[window_start(nino_x, 5), nino_x.iloc[-1]],
-                    showgrid=False,
-                    rangeslider=dict(visible=True, thickness=0.045),
-                    rangeselector=dict(buttons=[dict(count=2, label="2Y", step="year", stepmode="backward"), dict(count=5, label="5Y", step="year", stepmode="backward"), dict(step="all", label="All")]),
-                ),
-            )
+            lay.update(yaxis=dict(title="Relative SST anomaly (°C)", zeroline=False, gridcolor="#edf2f7"), xaxis=dict(range=[window_start(nino_x, 5), nino_x.iloc[-1]], showgrid=False, rangeslider=dict(visible=True, thickness=0.045), rangeselector=dict(buttons=[dict(count=2, label="2Y", step="year", stepmode="backward"), dict(count=5, label="5Y", step="year", stepmode="backward"), dict(step="all", label="All")])))
             fig.update_layout(**lay)
             st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False, "responsive": True})
         else:
             data_unavailable_message(nino_meta.source, "Weekly regional index fields are unavailable.")
 
-    # Analytical view
     st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
     section_header("ANALYTICAL VIEW", "Comparação dos principais sinais e contexto climático para leitura objetiva.")
     if oni_df is not None and not oni_df.empty:
@@ -356,31 +320,21 @@ else:
     else:
         data_unavailable_message(oni_meta.source, oni_meta.message)
 
-    for col, title, body in zip(
-        st.columns(3),
-        ["Atmosphere", "Precipitation & Temperature", "Agriculture & Water"],
-        [
-            "ENSO altera a convecção tropical e a circulação atmosférica, produzindo teleconexões que se estendem além do Pacífico.",
-            "As relações históricas entre ENSO, precipitação e temperatura variam conforme a região e a estação; não são determinísticas.",
-            "Mudanças em precipitação e temperatura podem afetar água e agricultura, mas a resposta local depende das condições regionais.",
-        ],
-    ):
+    for col, title, body in zip(st.columns(3), ["Atmosphere", "Precipitation & Temperature", "Agriculture & Water"], ["ENSO altera a convecção tropical e a circulação atmosférica, produzindo teleconexões que se estendem além do Pacífico.", "As relações históricas entre ENSO, precipitação e temperatura variam conforme a região e a estação; não são determinísticas.", "Mudanças em precipitação e temperatura podem afetar água e agricultura, mas a resposta local depende das condições regionais."]):
         with col:
             st.markdown(f'<div class="surface"><h4>{title}</h4><p>{body}</p></div>', unsafe_allow_html=True)
 
-    # Methodology
     st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
-    section_header("METHODOLOGY", "Da observação oceânica à avaliação operacional do ENSO.")
-    st.markdown('<div class="flow"><div class="flow-step">Observed SST</div><div class="flow-arrow">→</div><div class="flow-step">SST Anomaly</div><div class="flow-arrow">→</div><div class="flow-step">Niño Regions</div><div class="flow-arrow">→</div><div class="flow-step">RONI / ONI</div><div class="flow-arrow">→</div><div class="flow-step">ENSO Assessment</div></div>', unsafe_allow_html=True)
+    section_header("METHODOLOGY", "Da observação oceânica e atmosférica à avaliação operacional do ENSO.")
+    st.markdown('<div class="flow"><div class="flow-step">Observed SST</div><div class="flow-arrow">→</div><div class="flow-step">SST Anomaly</div><div class="flow-arrow">→</div><div class="flow-step">Niño Regions</div><div class="flow-arrow">→</div><div class="flow-step">RONI / ONI</div><div class="flow-arrow">→</div><div class="flow-step">SOI</div><div class="flow-arrow">→</div><div class="flow-step">ENSO Assessment</div></div>', unsafe_allow_html=True)
     with st.expander("Methodological details"):
-        st.markdown("**Anomaly = observed SST − climatological reference.** Os produtos semanais Niño usam os produtos de SST relativa do NOAA CPC. RONI e ONI são séries relacionadas, mas metodologicamente distintas; o RONI é o indicador operacional principal deste observatório e o ONI é complementar. Uma observação descreve condições atuais ou históricas; uma previsão estima condições futuras com incerteza.")
+        st.markdown("**Anomaly = observed SST − climatological reference.** Os produtos semanais Niño usam os produtos de SST relativa do NOAA CPC. RONI e ONI são séries relacionadas, mas metodologicamente distintas; o RONI é o indicador operacional principal deste observatório e o ONI é complementar. O SOI é um diagnóstico atmosférico da oscilação sul e é usado aqui como evidência de acoplamento, não como substituto da classificação operacional. Uma observação descreve condições atuais ou históricas; uma previsão estima condições futuras com incerteza.")
     with st.expander("ENSO 101"):
-        st.markdown("ENSO é um padrão acoplado oceano-atmosfera no Pacífico tropical. El Niño é a fase quente, La Niña a fase fria e Neutral descreve condições entre os limiares operacionais. Niño 3.4 é uma região de referência no Pacífico equatorial. As teleconexões variam conforme a localização e a estação.")
+        st.markdown("ENSO é um padrão acoplado oceano-atmosfera no Pacífico tropical. El Niño é a fase quente, La Niña a fase fria e Neutral descreve condições entre os limiares operacionais. Niño 3.4 é uma região de referência no Pacífico equatorial. O SOI fornece contexto atmosférico complementar; valores negativos persistentes são geralmente associados a El Niño e positivos a La Niña.")
 
-    # Data & provenance
     st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
     section_header("DATA & PROVENANCE", "Produtos oficiais do NOAA Climate Prediction Center usados no observatório.")
-    for meta in [roni_meta, oni_meta, nino_meta]:
+    for meta in [roni_meta, oni_meta, nino_meta, soi_meta]:
         st.markdown(f'<div class="source-row"><strong>{meta.dataset}</strong><br><small>NOAA Climate Prediction Center (CPC) · dados oficiais</small></div>', unsafe_allow_html=True)
     st.markdown('<div class="executive-note"><strong>Princípio do observatório:</strong> resultados são derivados de observações e índices publicados pela NOAA. O painel não usa dados sintéticos, conjuntos de fallback ou estimativas não identificadas.</div>', unsafe_allow_html=True)
     st.caption("Source: NOAA Climate Prediction Center (CPC).")
