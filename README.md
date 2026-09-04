@@ -8,18 +8,6 @@ E.N.S.O is a focused, single-page climate intelligence observatory that turns of
 
 **Portfolio case:** [docs/portfolio-case.md](docs/portfolio-case.md)
 
-## Visual overview
-
-Selected presentation assets for portfolio, GitHub and social posts:
-
-![E.N.S.O overview](docs/assets/enso-overview.svg)
-
-![E.N.S.O Pacific conditions](docs/assets/enso-pacific.svg)
-
-![E.N.S.O analytical view](docs/assets/enso-analytical.svg)
-
-> These visuals are presentation assets based on the validated observatory outputs. They are not a substitute for the live Streamlit interface.
-
 ## What it answers
 
 The observatory is designed around five questions:
