@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pandas as pd
+
 from src.data.foundation import ingest_and_archive, load_latest_snapshot
 from src.data.models import DataStatus, SeriesMetadata
 
