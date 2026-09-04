@@ -15,7 +15,7 @@ import streamlit as st
 
 from src.analysis.enso import classify_enso_state, classify_intensity, compute_recent_trend
 from src.noaa import fetch_nino_indices, fetch_oni, fetch_roni
-from src.ui.components import apply_light_theme, data_unavailable_message, metric_card, section_header
+from src.ui.components import apply_light_theme, data_unavailable_message, metric_card, render_regime_timeline, section_header
 
 st.set_page_config(
     page_title="ENSO Intelligence | Climate Observatory",
@@ -286,6 +286,7 @@ else:
 
     # Pacific conditions
     st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
+    render_regime_timeline(roni_df)
     section_header("PACIFIC CONDITIONS", "Anomalias semanais de SST relativa nas quatro regiões Niño publicadas pela NOAA CPC.")
     if nino_df is None or nino_df.empty:
         data_unavailable_message(nino_meta.source, nino_meta.message)
