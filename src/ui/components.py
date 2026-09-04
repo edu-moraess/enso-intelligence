@@ -147,3 +147,11 @@ def data_unavailable_message(source: str = "NOAA", detail: Optional[str] = None)
     if detail:
         msg += f"\n\n_{detail}_"
     st.warning(msg)
+
+
+def enso_state_class(state: str) -> str:
+    return {"El Niño": "state-el-nino", "La Niña": "state-la-nina", "Neutral": "state-neutral"}.get(state, "state-neutral")
+
+
+def state_emoji(state: str) -> str:
+    return {"El Niño": "🔴", "La Niña": "🔵", "Neutral": "⚪"}.get(state, "⚪")
