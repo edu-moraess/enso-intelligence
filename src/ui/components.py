@@ -50,6 +50,17 @@ def apply_light_theme() -> None:
         .js-plotly-plot .modebar { display: none !important; }
         .source-row { background: transparent; border: 0; border-bottom: 1px solid #eef2f6; border-radius: 0; padding: .32rem 0; margin: 0; }
         .source-row small { color: #64748b; font-size: .72rem; }
+
+        /* Observatory polish: remove duplicated status text and keep the methodology flow compact. */
+        .insight { display: none !important; }
+        .flow { flex-wrap: nowrap !important; gap: .35rem !important; }
+        .flow-step { padding: .52rem .62rem; font-size: .82rem; white-space: nowrap; }
+        .flow-arrow { flex: 0 0 auto; }
+        .executive-note { line-height: 1.7; }
+
+        @media (min-width:701px) and (max-width:1100px) {
+            .flow { flex-wrap: wrap !important; }
+        }
         @media (max-width:700px) {
             .block-container { padding: .9rem .75rem 2.5rem !important; }
             .obs-card { padding: .9rem 1rem; margin-bottom: .6rem; }
@@ -62,7 +73,8 @@ def apply_light_theme() -> None:
             .section-subtitle { font-size: .78rem; line-height: 1.4; }
             .section-rule { margin: 1.25rem 0 .85rem; }
             .state-el-nino,.state-la-nina,.state-neutral { font-size: 1.55rem; }
-            .flow-step { display: block; margin: .25rem 0; text-align: center; }
+            .flow { display: block !important; }
+            .flow-step { display: block; margin: .25rem 0; text-align: center; white-space: normal; }
         }
         </style>
         """,
