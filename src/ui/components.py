@@ -20,6 +20,11 @@ def apply_light_theme() -> None:
         div[data-testid="stMetric"] [data-testid="stMetricValue"] { color: #111827 !important; font-weight: 650; }
         .obs-hero { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 1.75rem 2rem; margin-bottom: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .obs-card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 1.25rem 1.4rem; margin-bottom: 0.85rem; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+        .current-condition-card { min-height: 132px; display: flex; flex-direction: column; justify-content: center; }
+        .current-condition-card .metric-value { font-size: 1.72rem !important; letter-spacing: -0.025em; }
+        .current-condition-card.state-card .metric-value { font-size: 1.9rem !important; font-weight: 800 !important; letter-spacing: -0.035em; }
+        .current-condition-card.roni-card .metric-value { font-size: 1.85rem !important; font-weight: 800 !important; }
+        .current-condition-card .metric-detail { margin-top: .38rem !important; }
         .state-el-nino { color: #b91c1c; font-weight: 800; font-size: 2rem; letter-spacing: -0.03em; }
         .state-la-nina { color: #1d4ed8; font-weight: 800; font-size: 2rem; letter-spacing: -0.03em; }
         .state-neutral { color: #374151; font-weight: 800; font-size: 2rem; letter-spacing: -0.03em; }
@@ -44,6 +49,10 @@ def apply_light_theme() -> None:
         @media (max-width:700px) {
             .block-container { padding: .9rem .75rem 2.5rem !important; }
             .obs-card { padding: .9rem 1rem; margin-bottom: .6rem; }
+            .current-condition-card { min-height: 112px; }
+            .current-condition-card .metric-value { font-size: 1.48rem !important; }
+            .current-condition-card.state-card .metric-value { font-size: 1.62rem !important; }
+            .current-condition-card.roni-card .metric-value { font-size: 1.58rem !important; }
             .section-title { font-size: 1.18rem; }
             .section-subtitle { font-size: .78rem; line-height: 1.4; }
             .section-rule { margin: 1.25rem 0 .85rem; }
@@ -79,10 +88,16 @@ def section_header(title: str, subtitle: Optional[str] = None) -> None:
 
 def metric_card(label: str, value: str, detail: Optional[str] = None) -> None:
     """Render a compact metric card used by the one-page observatory."""
+    current_labels = {"Estado atual", "RONI", "Último período", "3-season change"}
+    current_class = " current-condition-card"
+    if label == "Estado atual":
+        current_class += " state-card"
+    elif label == "RONI":
+        current_class += " roni-card"
     st.markdown(
-        f'<div class="obs-card"><div class="section-label">{label}</div>'
-        f'<div style="font-size:1.55rem;font-weight:750;color:#111827;line-height:1.15;">{value}</div>'
-        f'{f"<div style=\"color:#6b7280;font-size:.82rem;margin-top:.3rem;\">{detail}</div>" if detail else ""}'
+        f'<div class="obs-card{current_class if label in current_labels else ""}"><div class="section-label">{label}</div>'
+        f'<div class="metric-value" style="font-size:1.55rem;font-weight:750;color:#111827;line-height:1.15;">{value}</div>'
+        f'{f"<div class=\"metric-detail\" style=\"color:#6b7280;font-size:.82rem;margin-top:.3rem;\">{detail}</div>" if detail else ""}'
         f'</div>',
         unsafe_allow_html=True,
     )
