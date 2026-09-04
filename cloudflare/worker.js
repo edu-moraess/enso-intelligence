@@ -1,4 +1,4 @@
-const FOUNDATION_VERSION = "1.1";
+const FOUNDATION_VERSION = "1.2";
 
 const DATASETS = {
   roni: {
@@ -13,7 +13,6 @@ const DATASETS = {
     url: "https://www.cpc.ncep.noaa.gov/data/indices/wksst9120.for",
     required: [
       "date",
-      "week",
       "nino12_sst",
       "nino12",
       "nino3_sst",
@@ -26,20 +25,28 @@ const DATASETS = {
   },
 };
 
-const MONTHS = {
-  JAN: 1,
-  FEB: 2,
-  MAR: 3,
-  APR: 4,
-  MAY: 5,
-  JUN: 6,
-  JUL: 7,
-  AUG: 8,
-  SEP: 9,
-  OCT: 10,
-  NOV: 11,
-  DEC: 12,
+const SEASONS = new Set([
+  "DJF", "JFM", "FMA", "MAM", "AMJ", "MJJ",
+  "JJA", "JAS", "ASO", "SON", "OND", "NDJ",
+]);
+
+const SEASON_CENTRAL_MONTH = {
+  DJF: 1,
+  JFM: 2,
+  FMA: 3,
+  MAM: 4,
+  AMJ: 5,
+  MJJ: 6,
+  JJA: 7,
+  JAS: 8,
+  ASO: 9,
+  SON: 10,
+  OND: 11,
+  NDJ: 12,
 };
+
+const WEEKLY_DATE_RE = /^\s*(\d{1,2}[A-Za-z]{3}\d{4})\s+(.*)$/i;
+const FLOAT_RE = /[-+]?\d+\.\d+/g;
 
 async function sha256Hex(input) {
   const buffer = await crypto.subtle.digest(
@@ -69,104 +76,113 @@ function toCsv(rows, columns) {
   );
 }
 
+function seasonDate(season, year) {
+  const month = SEASON_CENTRAL_MONTH[season];
+  return `${year}-${String(month).padStart(2, "0")}-15`;
+}
+
 function parseRoni(text) {
   const rows = [];
 
   for (const line of text.split(/\r?\n/)) {
-    const match = line.match(
-      /^\s*(\d{4})\s+(\d{1,2})\s+([+-]?\d+(?:\.\d+)?)/,
-    );
-    if (!match) continue;
+    const parts = line.trim().split(/\s+/);
+    if (parts.length < 3) continue;
 
-    const [, yearRaw, monthRaw, valueRaw] = match;
+    const [season, yearRaw, valueRaw] = parts;
+    if (!SEASONS.has(season)) continue;
+
     const year = Number(yearRaw);
-    const month = Number(monthRaw);
     const value = Number(valueRaw);
-
-    if (!Number.isInteger(year) || month < 1 || month > 12) continue;
+    if (!Number.isInteger(year)) continue;
     if (!Number.isFinite(value) || value <= -99) continue;
 
     rows.push({
-      date: `${year}-${String(month).padStart(2, "0")}-15`,
-      season: "",
+      date: seasonDate(season, year),
+      season,
       year,
       roni: value,
     });
   }
 
   if (!rows.length) throw new Error("RONI parser returned no observations");
-  return rows;
+  return rows.sort((a, b) => a.date.localeCompare(b.date));
 }
 
 function parseOni(text) {
   const rows = [];
 
   for (const line of text.split(/\r?\n/)) {
-    const match = line.match(
-      /^\s*(\d{4})\s+([A-Z]{3})\s+([+-]?\d+(?:\.\d+)?)/,
-    );
-    if (!match) continue;
+    const parts = line.trim().split(/\s+/);
+    if (parts.length < 4) continue;
 
-    const [, yearRaw, monthName, valueRaw] = match;
+    const [season, yearRaw, totalRaw, anomalyRaw] = parts;
+    if (!SEASONS.has(season)) continue;
+
     const year = Number(yearRaw);
-    const month = MONTHS[monthName];
-    const value = Number(valueRaw);
-
-    if (!month || !Number.isInteger(year)) continue;
-    if (!Number.isFinite(value) || value <= -99) continue;
+    const total = Number(totalRaw);
+    const anomaly = Number(anomalyRaw);
+    if (!Number.isInteger(year)) continue;
+    if (!Number.isFinite(total) || !Number.isFinite(anomaly)) continue;
+    if (anomaly <= -99) continue;
 
     rows.push({
-      date: `${year}-${String(month).padStart(2, "0")}-15`,
-      season: "",
+      date: seasonDate(season, year),
+      season,
       year,
-      oni: value,
+      total,
+      oni: anomaly,
     });
   }
 
   if (!rows.length) throw new Error("ONI parser returned no observations");
-  return rows;
+  return rows.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function parseWeeklyDate(dateRaw) {
+  const match = dateRaw.match(/^(\d{1,2})([A-Za-z]{3})(\d{4})$/i);
+  if (!match) return null;
+
+  const [, dayRaw, monthRaw, yearRaw] = match;
+  const months = {
+    JAN: 1, FEB: 2, MAR: 3, APR: 4, MAY: 5, JUN: 6,
+    JUL: 7, AUG: 8, SEP: 9, OCT: 10, NOV: 11, DEC: 12,
+  };
+  const month = months[monthRaw.toUpperCase()];
+  const day = Number(dayRaw);
+  const year = Number(yearRaw);
+
+  if (!month || !Number.isInteger(day) || !Number.isInteger(year)) return null;
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
 function parseWeeklyNino(text) {
   const rows = [];
 
   for (const line of text.split(/\r?\n/)) {
-    const match = line.match(
-      /^\s*(\d{4})\s+(\d{1,2})\s+([+-]?\d+(?:\.\d+)?)\s+([+-]?\d+(?:\.\d+)?)\s+([+-]?\d+(?:\.\d+)?)\s+([+-]?\d+(?:\.\d+)?)/,
-    );
+    const match = line.match(WEEKLY_DATE_RE);
     if (!match) continue;
 
-    const [, yearRaw, weekRaw, nino12Raw, nino3Raw, nino34Raw, nino4Raw] = match;
-    const year = Number(yearRaw);
-    const week = Number(weekRaw);
-    const nino12 = Number(nino12Raw);
-    const nino3 = Number(nino3Raw);
-    const nino34 = Number(nino34Raw);
-    const nino4 = Number(nino4Raw);
+    const date = parseWeeklyDate(match[1]);
+    if (!date) continue;
 
-    if (!Number.isInteger(year) || !Number.isInteger(week)) continue;
-    if (week < 1 || week > 53) continue;
-    if (![nino12, nino3, nino34, nino4].every(Number.isFinite)) continue;
+    const nums = [...(match[2].matchAll(FLOAT_RE))].map((m) => Number(m[0]));
+    if (nums.length < 8) continue;
 
     rows.push({
-      date: `${year}-01-01`,
-      week,
-      nino12_sst: nino12,
-      nino12,
-      nino3_sst: nino3,
-      nino3,
-      nino34_sst: nino34,
-      nino34,
-      nino4_sst: nino4,
-      nino4,
+      date,
+      nino12_sst: nums[0],
+      nino12: nums[1],
+      nino3_sst: nums[2],
+      nino3: nums[3],
+      nino34_sst: nums[4],
+      nino34: nums[5],
+      nino4_sst: nums[6],
+      nino4: nums[7],
     });
   }
 
-  if (!rows.length) {
-    throw new Error("Weekly Niño parser returned no observations");
-  }
-
-  return rows;
+  if (!rows.length) throw new Error("Weekly Niño parser returned no observations");
+  return rows.sort((a, b) => a.date.localeCompare(b.date));
 }
 
 function validateRows(rows, required) {
@@ -178,6 +194,13 @@ function validateRows(rows, required) {
     if (!(column in rows[0])) {
       throw new Error(`Missing required column: ${column}`);
     }
+  }
+
+  const seen = new Set();
+  for (const row of rows) {
+    const key = row.date;
+    if (seen.has(key)) throw new Error(`Duplicate date: ${key}`);
+    seen.add(key);
   }
 }
 
@@ -219,7 +242,8 @@ async function publishDataset(env, name, rows, columns, sourceUrl) {
   });
 
   if (!snapshotResponse.ok && snapshotResponse.status !== 422) {
-    throw new Error(`GitHub snapshot publish failed: ${snapshotResponse.status}`);
+    const detail = await snapshotResponse.text();
+    throw new Error(`GitHub snapshot publish failed: ${snapshotResponse.status} ${detail}`);
   }
 
   let existingManifest = "";
@@ -234,7 +258,8 @@ async function publishDataset(env, name, rows, columns, sourceUrl) {
     manifestSha = data.sha;
     existingManifest = atob(data.content.replace(/\n/g, ""));
   } else if (manifestGet.status !== 404) {
-    throw new Error(`GitHub manifest read failed: ${manifestGet.status}`);
+    const detail = await manifestGet.text();
+    throw new Error(`GitHub manifest read failed: ${manifestGet.status} ${detail}`);
   }
 
   const manifestEntry =
@@ -264,7 +289,8 @@ async function publishDataset(env, name, rows, columns, sourceUrl) {
   });
 
   if (!manifestResponse.ok) {
-    throw new Error(`GitHub manifest publish failed: ${manifestResponse.status}`);
+    const detail = await manifestResponse.text();
+    throw new Error(`GitHub manifest publish failed: ${manifestResponse.status} ${detail}`);
   }
 
   return {
@@ -329,7 +355,6 @@ async function run(env) {
 export default {
   async scheduled(controller, env) {
     const result = await run(env);
-
     console.log(JSON.stringify(result));
 
     if (Object.keys(result.errors).length > 0) {
@@ -347,9 +372,7 @@ export default {
           service: "enso-data-core",
           foundation_version: FOUNDATION_VERSION,
         }),
-        {
-          headers: { "Content-Type": "application/json" },
-        },
+        { headers: { "Content-Type": "application/json" } },
       );
     }
 
