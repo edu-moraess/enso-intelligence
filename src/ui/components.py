@@ -25,9 +25,9 @@ def apply_light_theme() -> None:
         .current-condition-card.state-card .metric-value { font-size: 1.9rem !important; font-weight: 800 !important; letter-spacing: -0.035em; }
         .current-condition-card.roni-card .metric-value { font-size: 1.85rem !important; font-weight: 800 !important; }
         .current-condition-card .metric-detail { margin-top: .38rem !important; }
-        .obs-footer { border-top: 1px solid #e5e7eb; margin-top: 2.5rem; padding: 1rem 0 .35rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; color: #94a3b8; font-size: .7rem; line-height: 1.5; }
+        .obs-footer { border-top: 1px solid #e5e7eb; margin-top: 2.25rem; padding: .8rem 0 .25rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; color: #94a3b8; font-size: .68rem; line-height: 1.45; }
         .obs-footer-brand { color: #64748b; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }
-        [data-testid="stAppViewBlockContainer"]::after { content: "Official NOAA data · CPC · PSL · NCEI    |    ARQTECH LABS · © 2026"; display: block; border-top: 1px solid #e5e7eb; margin-top: 2.5rem; padding: 1rem 0 .35rem; color: #94a3b8; font-size: .7rem; line-height: 1.5; text-align: center; letter-spacing: .01em; }
+        [data-testid="stAppViewBlockContainer"]::after { content: "Official NOAA data · CPC · PSL · NCEI    |    ARQTECH LABS · © 2026"; display: block; border-top: 1px solid #e5e7eb; margin-top: 2.25rem; padding: .8rem 0 .25rem; color: #94a3b8; font-size: .68rem; line-height: 1.45; text-align: center; letter-spacing: .01em; }
         .state-el-nino { color: #b91c1c; font-weight: 800; font-size: 2rem; letter-spacing: -0.03em; }
         .state-la-nina { color: #1d4ed8; font-weight: 800; font-size: 2rem; letter-spacing: -0.03em; }
         .state-neutral { color: #374151; font-weight: 800; font-size: 2rem; letter-spacing: -0.03em; }
@@ -49,6 +49,9 @@ def apply_light_theme() -> None:
         .block-container { padding-top: 1.25rem; max-width: 1100px; }
         hr { border: none; border-top: 1px solid #e5e7eb; margin: 1.5rem 0; }
         .js-plotly-plot .modebar { display: none !important; }
+        /* DATA & PROVENANCE: keep source traceability without giving each source a full card. */
+        .source-row { background: transparent; border: 0; border-bottom: 1px solid #eef2f6; border-radius: 0; padding: .32rem 0; margin: 0; }
+        .source-row small { color: #64748b; font-size: .72rem; }
         @media (max-width:700px) {
             .block-container { padding: .9rem .75rem 2.5rem !important; }
             .obs-card { padding: .9rem 1rem; margin-bottom: .6rem; }
@@ -56,8 +59,8 @@ def apply_light_theme() -> None:
             .current-condition-card .metric-value { font-size: 1.48rem !important; }
             .current-condition-card.state-card .metric-value { font-size: 1.62rem !important; }
             .current-condition-card.roni-card .metric-value { font-size: 1.58rem !important; }
-            .obs-footer { align-items: flex-start; flex-direction: column; gap: .25rem; margin-top: 2rem; }
-            [data-testid="stAppViewBlockContainer"]::after { text-align: center; margin-top: 2rem; padding-bottom: .25rem; font-size: .66rem; }
+            .obs-footer { align-items: flex-start; flex-direction: column; gap: .2rem; margin-top: 1.8rem; }
+            [data-testid="stAppViewBlockContainer"]::after { text-align: center; margin-top: 1.8rem; padding-bottom: .2rem; font-size: .64rem; }
             .section-title { font-size: 1.18rem; }
             .section-subtitle { font-size: .78rem; line-height: 1.4; }
             .section-rule { margin: 1.25rem 0 .85rem; }
