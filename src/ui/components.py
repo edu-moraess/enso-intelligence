@@ -109,9 +109,9 @@ def metric_card(label: str, value: str, detail: Optional[str] = None) -> None:
 
 
 def render_footer() -> None:
-    """Render the exact single-line observatory footer."""
+    """Render the compact attribution footer."""
     st.markdown(
-        '<div class="obs-footer">Official NOAA data · CPC · PSL · NCEI | ARQTECH LABS · © 2026</div>',
+        '<div class="obs-footer">Data: NOAA CPC · PSL · NCEI | ARQTECH LABS · © 2026</div>',
         unsafe_allow_html=True,
     )
 
