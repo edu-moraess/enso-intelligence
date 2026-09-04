@@ -6,6 +6,8 @@ E.N.S.O is a focused, single-page climate intelligence observatory that turns of
 
 > **Product principle:** observe first, interpret clearly, document the source. E.N.S.O is an observational intelligence product — not a forecasting system.
 
+**Portfolio case:** [docs/portfolio-case.md](docs/portfolio-case.md)
+
 ## What it answers
 
 The observatory is designed around five questions:
