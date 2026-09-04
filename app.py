@@ -24,8 +24,8 @@ st.markdown("""
 [data-testid="stSidebar"], [data-testid="collapsedControl"] { display:none; }
 .block-container { max-width:1480px; padding:1.35rem 2.25rem 4.2rem; }
 .hero { background:linear-gradient(135deg,#ffffff 0%,#f3f7fb 100%); border:1px solid #dbe4ee; border-radius:22px; padding:1.65rem 2.2rem; margin-bottom:1rem; box-shadow:0 8px 30px rgba(15,23,42,.035); }
-.eyebrow { color:#2563eb; font-size:.7rem; font-weight:800; letter-spacing:.14em; text-transform:uppercase; }
-.hero h1 { color:#0f172a; font-size:clamp(2.2rem,5vw,4rem); line-height:1; margin:.4rem 0 .15rem; letter-spacing:-.055em; }
+.eyebrow { color:#2563eb; font-size:clamp(2.2rem,5vw,4rem); line-height:1; font-weight:800; letter-spacing:-.055em; text-transform:uppercase; }
+.hero h1 { color:#0f172a; font-size:clamp(2.2rem,5vw,4rem); line-height:1; margin:.1rem 0 .2rem; letter-spacing:-.055em; }
 .hero p { color:#94a3b8; font-size:.72rem; font-style:italic; letter-spacing:.01em; margin:0; }
 .insight { background:#f8fafc; border:1px solid #e2e8f0; border-radius:13px; padding:.75rem 1rem; color:#334155; }
 .surface { background:#fff; border:1px solid #e2e8f0; border-radius:15px; padding:1.05rem 1.15rem; height:100%; }
@@ -38,7 +38,7 @@ st.markdown("""
 .flow { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:.5rem; margin:.8rem 0; }
 .flow-step { background:#f8fafc; border:1px solid #dbe5f0; border-radius:10px; padding:.58rem .78rem; font-weight:700; color:#334155; }
 .flow-arrow { color:#94a3b8; font-size:1.1rem; }
-@media (max-width:700px) { .block-container { padding:1rem .85rem 3rem; } .hero { padding:1.35rem 1.15rem; } .flow { display:block; } .flow-step { margin:.25rem 0; text-align:center; } .flow-arrow { display:block; text-align:center; } }
+@media (max-width:700px) { .block-container { padding:1rem .85rem 3rem; } .hero { padding:1.35rem 1.15rem; } .eyebrow,.hero h1 { font-size:clamp(2rem,11vw,3rem); } .flow { display:block; } .flow-step { margin:.25rem 0; text-align:center; } .flow-arrow { display:block; text-align:center; } }
 </style>
 """, unsafe_allow_html=True)
 
