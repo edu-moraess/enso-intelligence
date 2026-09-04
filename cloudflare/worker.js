@@ -19,6 +19,10 @@ const DATASETS = {
       "nino12_ssta", "nino3_ssta", "nino34_ssta", "nino4_ssta",
     ],
   },
+  soi: {
+    url: "https://www.cpc.ncep.noaa.gov/data/indices/soi",
+    required: ["date", "year", "month", "soi"],
+  },
 };
 
 const SEASONS = new Set(["DJF", "JFM", "FMA", "MAM", "AMJ", "MJJ", "JJA", "JAS", "ASO", "SON", "OND", "NDJ"]);
@@ -62,7 +66,7 @@ function parseWeekly(text) {
   for (const line of text.split(/\r?\n/)) {
     const m = line.match(dateRe);
     if (!m) continue;
-    const dt = new Date(`${m[1].slice(0, 2)} ${m[1].slice(2, 5)} ${m[1].slice(5) } UTC`);
+    const dt = new Date(`${m[1].slice(0, 2)} ${m[1].slice(2, 5)} ${m[1].slice(5)} UTC`);
     if (Number.isNaN(dt.getTime())) continue;
     const nums = (m[2].match(floatRe) || []).map(Number);
     if (nums.length < 8 || nums.some((v) => !Number.isFinite(v))) continue;
@@ -74,6 +78,28 @@ function parseWeekly(text) {
     });
   }
   if (!rows.length) throw new Error("No valid weekly Niño records found");
+  rows.sort((a, b) => a.date.localeCompare(b.date));
+  return rows;
+}
+
+function parseSoi(text) {
+  const rows = [];
+  const lines = text.split(/\r?\n/);
+  const headerIndex = lines.findIndex((line) => /^\s*YEAR\s+JAN\s+FEB/.test(line));
+  if (headerIndex < 0) throw new Error("SOI header not found");
+  for (const line of lines.slice(headerIndex + 1)) {
+    const m = line.match(/^\s*(\d{4})(.*)$/);
+    if (!m) continue;
+    const year = Number.parseInt(m[1], 10);
+    const values = (m[2].match(/[-+]?\d+(?:\.\d+)?/g) || []).map(Number);
+    if (!Number.isInteger(year) || values.length < 12) continue;
+    for (let month = 1; month <= 12; month += 1) {
+      const soi = values[month - 1];
+      if (!Number.isFinite(soi) || soi <= -999) continue;
+      rows.push({ year, month, soi, date: `${year}-${pad(month)}-15T00:00:00` });
+    }
+  }
+  if (!rows.length) throw new Error("No valid SOI records found");
   rows.sort((a, b) => a.date.localeCompare(b.date));
   return rows;
 }
@@ -144,9 +170,7 @@ async function publishDataset(env, dataset, rows, required, sourceUrl, datasetLa
   const csvPath = `${base}/${snapshotId}.csv`;
   const manifestPath = `${base}/manifest.jsonl`;
   const existingCsv = await githubFile(env, csvPath);
-  if (!existingCsv) {
-    await putGithubFile(env, csvPath, content, `data: add ${dataset} NOAA snapshot ${snapshotId}`);
-  }
+  if (!existingCsv) await putGithubFile(env, csvPath, content, `data: add ${dataset} NOAA snapshot ${snapshotId}`);
 
   const existingManifest = await githubFile(env, manifestPath);
   let lines = [];
@@ -178,8 +202,15 @@ async function run(env) {
     const res = await fetch(spec.url, { headers: { "User-Agent": USER_AGENT } });
     if (!res.ok) throw new Error(`NOAA ${name}: ${res.status}`);
     const text = await res.text();
-    const rows = name === "roni" ? parseRonI(text) : name === "oni" ? parseOni(text) : parseWeekly(text);
-    results.push(await publishDataset(env, name, rows, spec.required, spec.url, name === "roni" ? "Relative Oceanic Niño Index (RONI)" : name === "oni" ? "Oceanic Niño Index (ONI)" : "Weekly Niño region SSTA (OISST.v2.1, 1991–2020)"));
+    const rows = name === "roni" ? parseRonI(text) : name === "oni" ? parseOni(text) : name === "weekly_nino" ? parseWeekly(text) : parseSoi(text);
+    const label = name === "roni"
+      ? "Relative Oceanic Niño Index (RONI)"
+      : name === "oni"
+        ? "Oceanic Niño Index (ONI)"
+        : name === "weekly_nino"
+          ? "Weekly Niño region SSTA (OISST.v2.1, 1991–2020)"
+          : "Southern Oscillation Index (SOI)";
+    results.push(await publishDataset(env, name, rows, spec.required, spec.url, label));
   }
   console.log(JSON.stringify({ foundation_version: FOUNDATION_VERSION, results }));
 }
