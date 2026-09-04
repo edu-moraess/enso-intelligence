@@ -1,23 +1,17 @@
 const FOUNDATION_VERSION = "1.1";
-const GITHUB_API = "https://api.github.com";
-const USER_AGENT = "enso-data-foundation-cloudflare";
 
 const DATASETS = {
   roni: {
     url: "https://www.cpc.ncep.noaa.gov/data/indices/RONI.ascii.txt",
-    required: ["date", "season", "year", "roni"],
+    required: ["date", "roni"],
   },
   oni: {
     url: "https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt",
-    required: ["date", "season", "year", "total", "oni"],
+    required: ["date", "oni"],
   },
   weekly_nino: {
     url: "https://www.cpc.ncep.noaa.gov/data/indices/wksst9120.for",
-    required: [
-      "date", "nino12_sst", "nino12", "nino3_sst", "nino3",
-      "nino34_sst", "nino34", "nino4_sst", "nino4",
-      "nino12_ssta", "nino3_ssta", "nino34_ssta", "nino4_ssta",
-    ],
+    required: ["date", "nino12", "nino3", "nino34", "nino4"],
   },
   soi: {
     url: "https://www.cpc.ncep.noaa.gov/data/indices/soi",
@@ -25,226 +19,375 @@ const DATASETS = {
   },
 };
 
-const SEASONS = new Set(["DJF", "JFM", "FMA", "MAM", "AMJ", "MJJ", "JJA", "JAS", "ASO", "SON", "OND", "NDJ"]);
-const CENTRAL_MONTH = { DJF: 1, JFM: 2, FMA: 3, MAM: 4, AMJ: 5, MJJ: 6, JJA: 7, JAS: 8, ASO: 9, SON: 10, OND: 11, NDJ: 12 };
-const DATASET_RETRIES = 2;
-const RETRY_DELAY_MS = 750;
+function sha256Hex(input) {
+  return crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(input)
+  ).then(buffer =>
+    [...new Uint8Array(buffer)]
+      .map(b => b.toString(16).padStart(2, "0"))
+      .join("")
+  );
+}
 
-function pad(n) { return String(n).padStart(2, "0"); }
-function seasonDate(season, year) { return `${year}-${pad(CENTRAL_MONTH[season] || 6)}-15T00:00:00`; }
+function csvEscape(value) {
+  const text = String(value ?? "");
+  return /[",\n]/.test(text)
+    ? `"${text.replace(/"/g, '""')}"`
+    : text;
+}
 
-function parseRonI(text) {
+function toCsv(rows, columns) {
+  return [
+    columns.join(","),
+    ...rows.map(row =>
+      columns.map(column => csvEscape(row[column])).join(",")
+    ),
+  ].join("\n") + "\n";
+}
+
+function parseRoni(text) {
   const rows = [];
+
   for (const line of text.split(/\r?\n/)) {
-    const p = line.trim().split(/\s+/);
-    if (p.length < 3 || !SEASONS.has(p[0])) continue;
-    const year = Number.parseInt(p[1], 10), roni = Number.parseFloat(p[2]);
-    if (!Number.isInteger(year) || !Number.isFinite(roni)) continue;
-    rows.push({ season: p[0], year, roni, date: seasonDate(p[0], year) });
+    const match = line.match(
+      /^\s*(\d{4})\s+(\d{1,2})\s+([+-]?\d+(?:\.\d+)?)/
+    );
+
+    if (!match) continue;
+
+    const [, year, month, value] = match;
+
+    rows.push({
+      date: `${year}-${String(month).padStart(2, "0")}-15`,
+      roni: Number(value),
+    });
   }
-  if (!rows.length) throw new Error("No valid RONI records found");
-  rows.sort((a, b) => a.date.localeCompare(b.date));
+
+  if (!rows.length) {
+    throw new Error("RONI parser returned no observations");
+  }
+
   return rows;
 }
 
 function parseOni(text) {
   const rows = [];
+
   for (const line of text.split(/\r?\n/)) {
-    const p = line.trim().split(/\s+/);
-    if (p.length < 4 || !SEASONS.has(p[0])) continue;
-    const year = Number.parseInt(p[1], 10), total = Number.parseFloat(p[2]), oni = Number.parseFloat(p[3]);
-    if (!Number.isInteger(year) || !Number.isFinite(total) || !Number.isFinite(oni)) continue;
-    rows.push({ season: p[0], year, total, oni, date: seasonDate(p[0], year) });
+    const match = line.match(
+      /^\s*(\d{4})\s+([A-Z]{3})\s+([+-]?\d+(?:\.\d+)?)/
+    );
+
+    if (!match) continue;
+
+    const [, year, monthName, value] = match;
+
+    const months = {
+      JAN: 1,
+      FEB: 2,
+      MAR: 3,
+      APR: 4,
+      MAY: 5,
+      JUN: 6,
+      JUL: 7,
+      AUG: 8,
+      SEP: 9,
+      OCT: 10,
+      NOV: 11,
+      DEC: 12,
+    };
+
+    const month = months[monthName];
+
+    if (!month) continue;
+
+    rows.push({
+      date: `${year}-${String(month).padStart(2, "0")}-15`,
+      oni: Number(value),
+    });
   }
-  if (!rows.length) throw new Error("No valid ONI records found");
-  rows.sort((a, b) => a.date.localeCompare(b.date));
+
+  if (!rows.length) {
+    throw new Error("ONI parser returned no observations");
+  }
+
   return rows;
 }
 
-function parseWeekly(text) {
+function parseWeeklyNino(text) {
   const rows = [];
-  const dateRe = /^\s*(\d{1,2}[A-Za-z]{3}\d{4})\s+(.*)$/i;
-  const floatRe = /[-+]?\d+\.\d+/g;
+
   for (const line of text.split(/\r?\n/)) {
-    const m = line.match(dateRe);
-    if (!m) continue;
-    const dt = new Date(`${m[1].slice(0, 2)} ${m[1].slice(2, 5)} ${m[1].slice(5)} UTC`);
-    if (Number.isNaN(dt.getTime())) continue;
-    const nums = (m[2].match(floatRe) || []).map(Number);
-    if (nums.length < 8 || nums.some((v) => !Number.isFinite(v))) continue;
+    const match = line.match(
+      /^\s*(\d{4})\s+(\d{1,2})\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)/
+    );
+
+    if (!match) continue;
+
+    const [, year, week, nino12, nino3, nino34, nino4] = match;
+
     rows.push({
-      date: `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}T00:00:00`,
-      nino12_sst: nums[0], nino12: nums[1], nino3_sst: nums[2], nino3: nums[3],
-      nino34_sst: nums[4], nino34: nums[5], nino4_sst: nums[6], nino4: nums[7],
-      nino12_ssta: nums[1], nino3_ssta: nums[3], nino34_ssta: nums[5], nino4_ssta: nums[7],
+      date: `${year}-01-01`,
+      week: Number(week),
+      nino12: Number(nino12),
+      nino3: Number(nino3),
+      nino34: Number(nino34),
+      nino4: Number(nino4),
     });
   }
-  if (!rows.length) throw new Error("No valid weekly Niño records found");
-  rows.sort((a, b) => a.date.localeCompare(b.date));
+
+  if (!rows.length) {
+    throw new Error("Weekly Niño parser returned no observations");
+  }
+
   return rows;
 }
 
 function parseSoi(text) {
-  const rows = [];
   const lines = text.split(/\r?\n/);
-  const headerIndex = lines.findIndex((line) => /^\s*YEAR\s+JAN\s+FEB/.test(line));
-  if (headerIndex < 0) throw new Error("SOI header not found");
-  for (const line of lines.slice(headerIndex + 1)) {
-    const m = line.match(/^\s*(\d{4})(.*)$/);
-    if (!m) continue;
-    const year = Number.parseInt(m[1], 10);
-    const values = (m[2].match(/[-+]?\d+(?:\.\d+)?/g) || []).map(Number);
-    if (!Number.isInteger(year) || values.length < 12) continue;
-    for (let month = 1; month <= 12; month += 1) {
-      const soi = values[month - 1];
-      if (!Number.isFinite(soi) || soi <= -999) continue;
-      rows.push({ year, month, soi, date: `${year}-${pad(month)}-15T00:00:00` });
-    }
+
+  const headerIndex = lines.findIndex(line =>
+    /^\s*YEAR\s+JAN\s+FEB/i.test(line)
+  );
+
+  if (headerIndex === -1) {
+    throw new Error("SOI header not found");
   }
-  if (!rows.length) throw new Error("No valid SOI records found");
-  rows.sort((a, b) => a.date.localeCompare(b.date));
+
+  const rows = [];
+
+  for (const line of lines.slice(headerIndex + 1)) {
+    const parts = line.trim().split(/\s+/);
+
+    if (!/^\d{4}$/.test(parts[0] ?? "")) {
+      continue;
+    }
+
+    const year = Number(parts[0]);
+    const values = parts.slice(1, 13);
+
+    if (values.length < 12) {
+      continue;
+    }
+
+    values.forEach((raw, index) => {
+      const value = Number(raw);
+
+      if (!Number.isFinite(value) || value <= -999) {
+        return;
+      }
+
+      rows.push({
+        date: `${year}-${String(index + 1).padStart(2, "0")}-15`,
+        year,
+        month: index + 1,
+        soi: value,
+      });
+    });
+  }
+
+  if (!rows.length) {
+    throw new Error("SOI parser returned no observations");
+  }
+
   return rows;
 }
 
-function escapeCsv(value) {
-  const s = value instanceof Date ? value.toISOString() : String(value ?? "");
-  return /[",\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s;
+function validateRows(rows, required) {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    throw new Error("Dataset contains no rows");
+  }
+
+  for (const column of required) {
+    if (!(column in rows[0])) {
+      throw new Error(`Missing required column: ${column}`);
+    }
+  }
 }
 
-function csv(rows, columns) {
-  return [columns.join(","), ...rows.map((r) => columns.map((c) => escapeCsv(r[c])).join(","))].join("\n") + "\n";
-}
+async function publishDataset(env, name, rows, columns) {
+  validateRows(rows, columns);
 
-function canonicalize(rows, required) {
-  const columns = [...required];
-  const normalized = rows.map((r) => Object.fromEntries(columns.map((c) => [c, r[c]])));
-  return { rows: normalized, columns };
-}
+  const csv = toCsv(rows, columns);
+  const digest = await sha256Hex(csv);
+  const snapshotId = digest.slice(0, 16);
 
-function validate(rows, required) {
-  const missing = required.filter((c) => !rows.every((r) => Object.hasOwn(r, c)));
-  const dates = rows.map((r) => r.date);
-  const duplicateDates = dates.length - new Set(dates).size;
-  const dateMonotonic = dates.every((d, i) => i === 0 || dates[i - 1] <= d);
-  const numeric = required.filter((c) => !["date", "season", "year"].includes(c));
-  const nonNumeric = numeric.filter((c) => rows.some((r) => !Number.isFinite(Number(r[c]))));
+  const basePath = `data/foundation/${name}`;
+  const snapshotPath = `${basePath}/${snapshotId}.csv`;
+  const manifestPath = `${basePath}/manifest.jsonl`;
+
+  const snapshotResponse = await fetch(
+    `https://api.github.com/repos/${env.GITHUB_REPOSITORY}/contents/${snapshotPath}`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+        "Content-Type": "application/json",
+        "User-Agent": "enso-data-foundation",
+      },
+      body: JSON.stringify({
+        message: `data: publish ${name} snapshot ${snapshotId}`,
+        content: btoa(csv),
+        branch: env.GIT_BRANCH,
+      }),
+    }
+  );
+
+  if (!snapshotResponse.ok && snapshotResponse.status !== 422) {
+    throw new Error(
+      `GitHub snapshot publish failed: ${snapshotResponse.status}`
+    );
+  }
+
+  const manifestEntry = JSON.stringify({
+    dataset: name,
+    snapshot_id: snapshotId,
+    sha256: digest,
+    rows: rows.length,
+    retrieved_at: new Date().toISOString(),
+    foundation_version: FOUNDATION_VERSION,
+  }) + "\n";
+
+  let existingManifest = "";
+
+  const manifestGet = await fetch(
+    `https://api.github.com/repos/${env.GITHUB_REPOSITORY}/contents/${manifestPath}?ref=${env.GIT_BRANCH}`,
+    {
+      headers: {
+        Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+        "User-Agent": "enso-data-foundation",
+      },
+    }
+  );
+
+  let manifestSha;
+
+  if (manifestGet.ok) {
+    const data = await manifestGet.json();
+    manifestSha = data.sha;
+    existingManifest = atob(data.content.replace(/\n/g, ""));
+  }
+
+  const updatedManifest = existingManifest + manifestEntry;
+
+  const manifestResponse = await fetch(
+    `https://api.github.com/repos/${env.GITHUB_REPOSITORY}/contents/${manifestPath}`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+        "Content-Type": "application/json",
+        "User-Agent": "enso-data-foundation",
+      },
+      body: JSON.stringify({
+        message: `data: update ${name} manifest`,
+        content: btoa(updatedManifest),
+        branch: env.GIT_BRANCH,
+        ...(manifestSha ? { sha: manifestSha } : {}),
+      }),
+    }
+  );
+
+  if (!manifestResponse.ok) {
+    throw new Error(
+      `GitHub manifest publish failed: ${manifestResponse.status}`
+    );
+  }
+
   return {
-    valid: rows.length > 0 && !missing.length && duplicateDates === 0 && dateMonotonic && !nonNumeric.length,
-    rows: rows.length, columns: required, duplicate_rows: 0, duplicate_dates: duplicateDates,
-    missing_required: missing, non_numeric_values: nonNumeric, date_monotonic: dateMonotonic,
-    message: missing.length ? "missing required columns" : nonNumeric.length ? "non-numeric values" : duplicateDates ? "duplicate dates" : !dateMonotonic ? "invalid or non-monotonic dates" : "OK",
+    snapshot_id: snapshotId,
+    sha256: digest,
+    rows: rows.length,
   };
 }
 
-async function sha256Hex(text) {
-  const bytes = new TextEncoder().encode(text);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 16);
-}
-
-function b64(text) { return btoa(unescape(encodeURIComponent(text))); }
-function headers(token) { return { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": USER_AGENT }; }
-
-async function githubFile(env, path) {
-  const url = `${GITHUB_API}/repos/${env.GITHUB_REPOSITORY}/contents/${path}?ref=${encodeURIComponent(env.GIT_BRANCH)}`;
-  const res = await fetch(url, { headers: headers(env.GITHUB_TOKEN) });
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`GitHub GET ${path}: ${res.status} ${await res.text()}`);
-  return res.json();
-}
-
-async function putGithubFile(env, path, content, message, sha = undefined) {
-  const url = `${GITHUB_API}/repos/${env.GITHUB_REPOSITORY}/contents/${path}`;
-  const body = { message, content: b64(content), branch: env.GIT_BRANCH };
-  if (sha) body.sha = sha;
-  const res = await fetch(url, { method: "PUT", headers: { ...headers(env.GITHUB_TOKEN), "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  if (!res.ok) throw new Error(`GitHub PUT ${path}: ${res.status} ${await res.text()}`);
-  return res.json();
-}
-
-async function publishDataset(env, dataset, rows, required, sourceUrl, datasetLabel) {
-  const { rows: canonical, columns } = canonicalize(rows, required);
-  const validation = validate(canonical, required);
-  if (!validation.valid) throw new Error(`${dataset}: validation failed: ${validation.message}`);
-  const content = csv(canonical, columns);
-  const snapshotId = await sha256Hex(content);
-  const base = `data/foundation/${dataset}`;
-  const csvPath = `${base}/${snapshotId}.csv`;
-  const manifestPath = `${base}/manifest.jsonl`;
-  const existingCsv = await githubFile(env, csvPath);
-  if (!existingCsv) await putGithubFile(env, csvPath, content, `data: add ${dataset} NOAA snapshot ${snapshotId}`);
-
-  const existingManifest = await githubFile(env, manifestPath);
-  let lines = [];
-  let manifestSha;
-  if (existingManifest) {
-    manifestSha = existingManifest.sha;
-    const decoded = decodeURIComponent(escape(atob(existingManifest.content.replace(/\n/g, ""))));
-    lines = decoded.split(/\r?\n/).filter(Boolean);
-  }
-  const known = new Set(lines.map((line) => { try { return JSON.parse(line).snapshot_id; } catch { return null; } }));
-  if (!known.has(snapshotId)) {
-    const start = canonical[0]?.date ?? null;
-    const end = canonical.at(-1)?.date ?? null;
-    const metadata = {
-      dataset: datasetLabel, source: "NOAA CPC", source_url: sourceUrl,
-      retrieved_at: new Date().toISOString(), snapshot_id: snapshotId,
-      rows: canonical.length, start, end, validation,
-    };
-    lines.push(JSON.stringify(metadata));
-    await putGithubFile(env, manifestPath, lines.join("\n") + "\n", `data: update ${dataset} foundation manifest`, manifestSha);
-  }
-  return { dataset, snapshotId, rows: canonical.length, created: !existingCsv };
-}
-
-function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
-
-async function fetchDatasetWithRetry(name, spec) {
-  let lastError;
-  for (let attempt = 0; attempt <= DATASET_RETRIES; attempt += 1) {
-    try {
-      const res = await fetch(spec.url, { headers: { "User-Agent": USER_AGENT } });
-      if (!res.ok) throw new Error(`NOAA ${name}: ${res.status}`);
-      return await res.text();
-    } catch (error) {
-      lastError = error;
-      if (attempt < DATASET_RETRIES) await sleep(RETRY_DELAY_MS * (attempt + 1));
-    }
-  }
-  throw lastError;
-}
-
 async function run(env) {
-  if (!env.GITHUB_TOKEN) throw new Error("GITHUB_TOKEN secret is required");
-  const results = [];
-  const errors = [];
-  for (const [name, spec] of Object.entries(DATASETS)) {
+  const results = {};
+  const errors = {};
+
+  for (const [name, config] of Object.entries(DATASETS)) {
     try {
-      const text = await fetchDatasetWithRetry(name, spec);
-      const rows = name === "roni" ? parseRonI(text) : name === "oni" ? parseOni(text) : name === "weekly_nino" ? parseWeekly(text) : parseSoi(text);
-      const label = name === "roni"
-        ? "Relative Oceanic Niño Index (RONI)"
-        : name === "oni"
-          ? "Oceanic Niño Index (ONI)"
-          : name === "weekly_nino"
-            ? "Weekly Niño region SSTA (OISST.v2.1, 1991–2020)"
-            : "Southern Oscillation Index (SOI)";
-      results.push(await publishDataset(env, name, rows, spec.required, spec.url, label));
+      const response = await fetch(config.url, {
+        headers: {
+          "User-Agent": "enso-data-foundation",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `NOAA request failed: ${response.status} ${response.statusText}`
+        );
+      }
+
+      const text = await response.text();
+
+      let rows;
+
+      if (name === "roni") {
+        rows = parseRoni(text);
+      } else if (name === "oni") {
+        rows = parseOni(text);
+      } else if (name === "weekly_nino") {
+        rows = parseWeeklyNino(text);
+      } else if (name === "soi") {
+        rows = parseSoi(text);
+      }
+
+      const columns = config.required;
+
+      results[name] = await publishDataset(
+        env,
+        name,
+        rows,
+        columns
+      );
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      errors.push({ dataset: name, error: message });
+      const message =
+        error instanceof Error ? error.message : String(error);
+
       console.error(`Dataset ${name} failed: ${message}`);
+
+      errors[name] = message;
     }
   }
-  console.log(JSON.stringify({ foundation_version: FOUNDATION_VERSION, results, errors }));
+
+  console.log(
+    JSON.stringify({
+      foundation_version: FOUNDATION_VERSION,
+      retrieved_at: new Date().toISOString(),
+      results,
+      errors,
+    })
+  );
+
+  return { results, errors };
 }
 
 export default {
   async scheduled(controller, env, ctx) {
     ctx.waitUntil(run(env));
   },
-  async fetch(request, env, ctx) {
-    if (new URL(request.url).pathname !== "/health") return new Response("Not found", { status: 404 });
-    return new Response(JSON.stringify({ service: "enso-data-foundation", status: "ok" }), { headers: { "content-type": "application/json" } });
+
+  async fetch(request, env) {
+    const url = new URL(request.url);
+
+    if (url.pathname === "/health") {
+      return new Response(
+        JSON.stringify({
+          status: "ok",
+          foundation_version: FOUNDATION_VERSION,
+        }),
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    }
+
+    return new Response("ENSO Data Foundation", {
+      status: 200,
+    });
   },
 };
