@@ -6,7 +6,6 @@ from src.data.foundation import persist_snapshot
 from src.noaa.cpc import fetch_nino_indices as fetch_live_nino
 from src.noaa.cpc import fetch_oni as fetch_live_oni
 from src.noaa.roni import fetch_roni as fetch_live_roni
-from src.noaa.soi import fetch_soi_live
 
 
 def ingest(fetcher, dataset: str, required_columns: tuple[str, ...]) -> None:
@@ -37,7 +36,6 @@ def main() -> None:
             "nino4_sst", "nino4",
         ),
     )
-    ingest(fetch_soi_live, "soi", ("date", "year", "month", "soi"))
 
 
 if __name__ == "__main__":
