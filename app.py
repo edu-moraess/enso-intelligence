@@ -25,8 +25,7 @@ st.markdown("""
 .block-container { max-width:1480px; padding:1.35rem 2.25rem 4.2rem; }
 .hero { background:linear-gradient(135deg,#ffffff 0%,#f3f7fb 100%); border:1px solid #dbe4ee; border-radius:22px; padding:1.65rem 2.2rem; margin-bottom:1rem; box-shadow:0 8px 30px rgba(15,23,42,.035); }
 .eyebrow { color:#2563eb; font-size:clamp(2.2rem,5vw,4rem); line-height:1; font-weight:800; letter-spacing:-.055em; text-transform:uppercase; }
-.hero h1 { color:#0f172a; font-size:clamp(2.2rem,5vw,4rem); line-height:1; margin:.1rem 0 .2rem; letter-spacing:-.055em; }
-.hero p { color:#94a3b8; font-size:.72rem; font-style:italic; letter-spacing:.01em; margin:0; }
+.hero p { color:#94a3b8; font-size:.72rem; font-style:italic; letter-spacing:.01em; margin:.18rem 0 0; }
 .insight { background:#f8fafc; border:1px solid #e2e8f0; border-radius:13px; padding:.75rem 1rem; color:#334155; }
 .surface { background:#fff; border:1px solid #e2e8f0; border-radius:15px; padding:1.05rem 1.15rem; height:100%; }
 .surface h4 { margin:.02rem 0 .4rem; color:#0f172a; }
@@ -38,7 +37,22 @@ st.markdown("""
 .flow { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:.5rem; margin:.8rem 0; }
 .flow-step { background:#f8fafc; border:1px solid #dbe5f0; border-radius:10px; padding:.58rem .78rem; font-weight:700; color:#334155; }
 .flow-arrow { color:#94a3b8; font-size:1.1rem; }
-@media (max-width:700px) { .block-container { padding:1rem .85rem 3rem; } .hero { padding:1.35rem 1.15rem; } .eyebrow,.hero h1 { font-size:clamp(2rem,11vw,3rem); } .flow { display:block; } .flow-step { margin:.25rem 0; text-align:center; } .flow-arrow { display:block; text-align:center; } }
+@media print {
+  @page { size: A4 portrait; margin: 10mm 9mm; }
+  html, body { width: 100% !important; background: #fff !important; }
+  .block-container { max-width: none !important; width: 100% !important; padding: 0 !important; }
+  [data-testid="stAppViewContainer"], [data-testid="stAppViewBlockContainer"], .main { overflow: visible !important; }
+  .hero { break-inside: avoid; page-break-inside: avoid; box-shadow: none; margin-bottom: 7mm; }
+  .section-rule { break-after: avoid; page-break-after: avoid; }
+  .surface, .source-row, .insight { break-inside: avoid; page-break-inside: avoid; }
+  [data-testid="stVerticalBlock"] { overflow: visible !important; }
+  .stPlotlyChart { break-inside: avoid; page-break-inside: avoid; overflow: visible !important; width: 100% !important; }
+  .stPlotlyChart > div, .stPlotlyChart iframe { max-width: 100% !important; }
+  .js-plotly-plot, .plot-container, .svg-container { width: 100% !important; }
+  .stButton, [data-testid="stToolbar"], [data-testid="stDecoration"], header, footer { display: none !important; }
+  .flow { break-inside: avoid; page-break-inside: avoid; }
+}
+@media (max-width:700px) { .block-container { padding:1rem .85rem 3rem; } .hero { padding:1.35rem 1.15rem; } .eyebrow { font-size:clamp(2rem,11vw,3rem); } .flow { display:block; } .flow-step { margin:.25rem 0; text-align:center; } .flow-arrow { display:block; text-align:center; } }
 </style>
 """, unsafe_allow_html=True)
 
@@ -65,7 +79,7 @@ roni_df, roni_meta = get_roni()
 oni_df, oni_meta = get_oni()
 nino_df, nino_meta = get_nino()
 
-st.markdown('<div class="hero"><div class="eyebrow">E.N.S.O</div><h1>INTELLIGENCE</h1><p>operational ENSO monitoring · NOAA official data</p></div>', unsafe_allow_html=True)
+st.markdown('<div class="hero"><div class="eyebrow">E.N.S.O</div><p>operational ENSO monitoring · NOAA official data</p></div>', unsafe_allow_html=True)
 
 if roni_df is None or roni_df.empty:
     data_unavailable_message(roni_meta.source, roni_meta.message)
