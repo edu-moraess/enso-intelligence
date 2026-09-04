@@ -89,6 +89,20 @@ _SEASON_ORDER = {
 }
 
 
+def _is_next_season(previous: pd.Series, current: pd.Series, season_col: str, year_col: str) -> bool:
+    """Return whether two rows are adjacent overlapping seasons in time."""
+    previous_season = str(previous[season_col])
+    current_season = str(current[season_col])
+    previous_year = int(previous[year_col])
+    current_year = int(current[year_col])
+
+    previous_rank = _SEASON_ORDER[previous_season]
+    current_rank = _SEASON_ORDER[current_season]
+    expected_rank = (previous_rank + 1) % len(_SEASON_ORDER)
+    expected_year = previous_year + (1 if previous_rank == len(_SEASON_ORDER) - 1 else 0)
+    return current_rank == expected_rank and current_year == expected_year
+
+
 def detect_enso_events(
     df: pd.DataFrame,
     value_col: str = "roni",
@@ -98,8 +112,10 @@ def detect_enso_events(
 ) -> List[ENSOEvent]:
     """Detect contiguous non-neutral RONI regimes of at least N seasons.
 
-    The input is normalized into chronological order before classification so
-    event detection does not depend on the caller's row ordering.
+    The input is normalized into chronological order before classification.
+    A regime is only considered contiguous when every pair of rows represents
+    adjacent overlapping seasons; gaps or duplicate/missing seasons therefore
+    cannot inflate an event duration.
     """
     required = {value_col, season_col, year_col}
     if df is None or df.empty or not required.issubset(df.columns):
@@ -116,19 +132,25 @@ def detect_enso_events(
         return []
     work = work.sort_values([year_col, "_season_rank"]).reset_index(drop=True)
 
-    values = work[value_col].astype(float).values
-    states = np.array([classify_enso_state(v).value for v in values])
     events: List[ENSOEvent] = []
     i = 0
-    n = len(states)
+    n = len(work)
     while i < n:
-        current = states[i]
-        if current == ENSOState.NEUTRAL.value:
+        state = classify_enso_state(float(work.iloc[i][value_col]))
+        if state == ENSOState.NEUTRAL:
             i += 1
             continue
-        j = i
-        while j < n and states[j] == current:
+
+        j = i + 1
+        while j < n:
+            previous = work.iloc[j - 1]
+            current = work.iloc[j]
+            if not _is_next_season(previous, current, season_col, year_col):
+                break
+            if classify_enso_state(float(current[value_col])) != state:
+                break
             j += 1
+
         length = j - i
         if length >= min_consecutive:
             segment = work.iloc[i:j]
@@ -137,7 +159,7 @@ def detect_enso_events(
             peak_val = float(peak_row[value_col])
             events.append(
                 ENSOEvent(
-                    event_type=current,
+                    event_type=state.value,
                     start_season=str(segment.iloc[0][season_col]),
                     end_season=str(segment.iloc[-1][season_col]),
                     start_year=int(segment.iloc[0][year_col]),
