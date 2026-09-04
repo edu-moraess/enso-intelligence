@@ -2,18 +2,28 @@ name: ENSO Data Foundation
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/data-foundation.yml"
   schedule:
     - cron: "17 3 * * *"
 
 permissions:
   contents: write
 
+concurrency:
+  group: enso-data-foundation
+  cancel-in-progress: false
+
 jobs:
   update-foundation:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Set up Python
         uses: actions/setup-python@v5
