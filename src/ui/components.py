@@ -57,6 +57,10 @@ def apply_light_theme() -> None:
         .flow-step { padding: .52rem .62rem; font-size: .82rem; white-space: nowrap; }
         .flow-arrow { flex: 0 0 auto; }
         .executive-note { line-height: 1.7; }
+        .analogue-card { min-height: 82px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; }
+
+        /* Keep Plotly range controls visually above the plotting field. */
+        .js-plotly-plot .rangeselector { transform: translateY(-8px); }
 
         @media (min-width:701px) and (max-width:1100px) {
             .flow { flex-wrap: wrap !important; }
@@ -75,6 +79,7 @@ def apply_light_theme() -> None:
             .state-el-nino,.state-la-nina,.state-neutral { font-size: 1.55rem; }
             .flow { display: block !important; }
             .flow-step { display: block; margin: .25rem 0; text-align: center; white-space: normal; }
+            .analogue-card { min-height: 74px; }
         }
         </style>
         """,
