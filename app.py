@@ -25,8 +25,8 @@ st.markdown("""
 .block-container { max-width:1480px; padding:1.35rem 2.25rem 4.2rem; }
 .hero { background:linear-gradient(135deg,#ffffff 0%,#f3f7fb 100%); border:1px solid #dbe4ee; border-radius:22px; padding:1.65rem 2.2rem; margin-bottom:1rem; box-shadow:0 8px 30px rgba(15,23,42,.035); }
 .eyebrow { color:#2563eb; font-size:.7rem; font-weight:800; letter-spacing:.14em; text-transform:uppercase; }
-.hero h1 { color:#0f172a; font-size:clamp(2.2rem,5vw,4rem); line-height:1; margin:.4rem 0 .5rem; letter-spacing:-.055em; }
-.hero p { color:#64748b; font-size:.96rem; margin:0; }
+.hero h1 { color:#0f172a; font-size:clamp(2.2rem,5vw,4rem); line-height:1; margin:.4rem 0 .15rem; letter-spacing:-.055em; }
+.hero p { color:#94a3b8; font-size:.72rem; font-style:italic; letter-spacing:.01em; margin:0; }
 .insight { background:#f8fafc; border:1px solid #e2e8f0; border-radius:13px; padding:.75rem 1rem; color:#334155; }
 .surface { background:#fff; border:1px solid #e2e8f0; border-radius:15px; padding:1.05rem 1.15rem; height:100%; }
 .surface h4 { margin:.02rem 0 .4rem; color:#0f172a; }
@@ -65,7 +65,7 @@ roni_df, roni_meta = get_roni()
 oni_df, oni_meta = get_oni()
 nino_df, nino_meta = get_nino()
 
-st.markdown('<div class="hero"><div class="eyebrow">Climate Observatory · El Niño–Southern Oscillation</div><h1>ENSO Intelligence</h1><p>Monitoramento operacional com produtos oficiais da NOAA Climate Prediction Center.</p></div>', unsafe_allow_html=True)
+st.markdown('<div class="hero"><div class="eyebrow">E.N.S.O</div><h1>INTELLIGENCE</h1><p>operational ENSO monitoring · NOAA official data</p></div>', unsafe_allow_html=True)
 
 if roni_df is None or roni_df.empty:
     data_unavailable_message(roni_meta.source, roni_meta.message)
