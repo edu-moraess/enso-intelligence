@@ -6,6 +6,9 @@ from typing import Optional
 
 import streamlit as st
 
+from src.noaa.roni import fetch_roni
+from src.ui.regime_timeline import build_regime_timeline
+
 
 def apply_light_theme() -> None:
     """Inject CSS for a clean light scientific observatory look."""
@@ -54,6 +57,19 @@ def apply_light_theme() -> None:
         """,
         unsafe_allow_html=True,
     )
+
+
+def render_regime_timeline() -> None:
+    """Render the RONI regime timeline as an explicit UI component."""
+    regime_df, _ = fetch_roni()
+    regime_fig = build_regime_timeline(regime_df)
+    if regime_fig is None:
+        return
+    st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">ENSO REGIME TIMELINE</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-subtitle">Episódios históricos de El Niño e La Niña identificados no histórico do RONI.</div>', unsafe_allow_html=True)
+    st.plotly_chart(regime_fig, use_container_width=True, config={"displaylogo": False, "responsive": True})
+    st.markdown('<div class="chart-note">Episódios não neutros com pelo menos cinco estações sobrepostas consecutivas. Passe o cursor para ver duração e pico do RONI.</div>', unsafe_allow_html=True)
 
 
 def section_header(title: str, subtitle: Optional[str] = None) -> None:
