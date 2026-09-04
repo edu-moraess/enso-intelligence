@@ -1,0 +1,69 @@
+name: One-off ENSO UI cleanup
+
+on:
+  push:
+    paths:
+      - .github/workflows/oneoff-enso-ui.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: !startsWith(github.event.head_commit.message, 'chore: apply ENSO UI cleanup')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply approved UI cleanup
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          app = Path('app.py')
+          text = app.read_text(encoding='utf-8')
+
+          old_import = 'from src.ui.components import apply_light_theme, data_unavailable_message, metric_card, render_regime_timeline, section_header'
+          new_import = 'from src.ui.components import apply_light_theme, data_unavailable_message, metric_card, render_footer, render_regime_timeline, section_header'
+          if old_import not in text:
+              raise SystemExit('Expected app.py import line not found')
+          text = text.replace(old_import, new_import, 1)
+
+          marker = '    section_header("DATA & PROVENANCE", "Fontes, cobertura e princípios de versionamento da base operacional.")'
+          start = text.rfind('    st.markdown(\'<div class="section-rule"></div>\', unsafe_allow_html=True)\n', 0, text.find(marker))
+          if start < 0:
+              raise SystemExit('DATA & PROVENANCE section start not found')
+          replacement = '''    st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)\n    section_header("DATA & PROVENANCE", "Official NOAA datasets · Operational ENSO monitoring.")\n    st.markdown(\n        '<div class="chart-note">Recent official index values may be revised by NOAA.</div>',\n        unsafe_allow_html=True,\n    )\n    render_footer()\n'''
+          text = text[:start] + replacement
+          app.write_text(text, encoding='utf-8')
+
+          comp = Path('src/ui/components.py')
+          ctext = comp.read_text(encoding='utf-8')
+          lines = ctext.splitlines(keepends=True)
+          out = []
+          i = 0
+          while i < len(lines):
+              if '[data-testid="stAppViewBlockContainer"]::after' in lines[i]:
+                  depth = 0
+                  while i < len(lines):
+                      depth += lines[i].count('{') - lines[i].count('}')
+                      i += 1
+                      if depth <= 0:
+                          break
+                  continue
+              out.append(lines[i])
+              i += 1
+          ctext = ''.join(out)
+          comp.write_text(ctext, encoding='utf-8')
+          PY
+
+          python -m compileall -q app.py src
+          git diff --check
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app.py src/ui/components.py
+          git commit -m 'chore: apply ENSO UI cleanup'
+          git push
