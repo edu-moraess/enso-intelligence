@@ -70,8 +70,12 @@ def canonicalize(df: pd.DataFrame, required_columns: tuple[str, ...]) -> pd.Data
     return work.reset_index(drop=True)
 
 
-def validate_dataset(df: pd.DataFrame, required_columns: tuple[str, ...]) -> ValidationResult:
-    """Validate structure, dates, duplicates and numeric fields before archiving."""
+def validate_dataset(
+    df: pd.DataFrame,
+    required_columns: tuple[str, ...],
+    numeric_columns: Optional[tuple[str, ...]] = None,
+) -> ValidationResult:
+    """Validate structure, dates, duplicates and numeric observation fields."""
     missing = tuple(column for column in required_columns if column not in df.columns)
     work = df.copy()
 
@@ -83,7 +87,13 @@ def validate_dataset(df: pd.DataFrame, required_columns: tuple[str, ...]) -> Val
         duplicate_dates = int(dates.duplicated().sum())
         date_monotonic = bool(dates.notna().all() and dates.is_monotonic_increasing)
 
-    numeric_columns = [c for c in required_columns if c != "date" and c in work.columns]
+    if numeric_columns is None:
+        # Seasonal labels and calendar years are categorical/time metadata,
+        # not numeric observations. All other required fields are observations.
+        numeric_columns = tuple(
+            c for c in required_columns if c not in {"date", "season", "year"}
+        )
+    numeric_columns = tuple(c for c in numeric_columns if c in work.columns)
     non_numeric = tuple(
         column for column in numeric_columns
         if not pd.to_numeric(work[column], errors="coerce").notna().all()
