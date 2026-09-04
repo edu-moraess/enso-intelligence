@@ -56,7 +56,7 @@ def build_regime_timeline(df: pd.DataFrame, minimum_periods: int = 5) -> go.Figu
             x=[work["date"].min(), work["date"].max()],
             y=[y_map[state], y_map[state]],
             mode="lines",
-            line=dict(color="#eef2f7", width=16),
+            line=dict(color="#eef2f7", width=14),
             hoverinfo="skip",
             showlegend=False,
         ))
@@ -69,7 +69,7 @@ def build_regime_timeline(df: pd.DataFrame, minimum_periods: int = 5) -> go.Figu
             x=[episode["start"], episode["end"]],
             y=[y, y],
             mode="lines",
-            line=dict(color=color, width=16),
+            line=dict(color=color, width=14),
             customdata=[[episode["state"], duration, episode["peak"]], [episode["state"], duration, episode["peak"]]],
             hovertemplate=(
                 "%{customdata[0]}<br>"
@@ -81,18 +81,20 @@ def build_regime_timeline(df: pd.DataFrame, minimum_periods: int = 5) -> go.Figu
         ))
 
     fig.update_layout(
-        height=170,
-        margin=dict(l=74, r=10, t=8, b=24),
+        height=215,
+        margin=dict(l=78, r=14, t=12, b=30),
         plot_bgcolor="#fff",
         paper_bgcolor="#fff",
-        xaxis=dict(showgrid=False, zeroline=False),
+        xaxis=dict(showgrid=False, zeroline=False, automargin=True),
         yaxis=dict(
             tickmode="array",
             tickvals=[0, 1, 2],
             ticktext=state_labels,
+            tickfont=dict(size=11),
             showgrid=False,
             zeroline=False,
             fixedrange=True,
+            range=[-0.35, 2.35],
         ),
         hovermode="closest",
         showlegend=False,
