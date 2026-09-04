@@ -2,7 +2,12 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.data.foundation import ingest_and_archive, persist_snapshot, validate_dataset
+from src.data.foundation import (
+    ingest_and_archive,
+    load_latest_snapshot,
+    persist_snapshot,
+    validate_dataset,
+)
 
 
 REQUIRED = ("date", "roni")
@@ -84,6 +89,41 @@ def test_persist_snapshot_is_content_addressed_and_idempotent(tmp_path: Path):
         tmp_path / "roni" / f"{first.snapshot_id}.csv"
     ]
     assert len((tmp_path / "roni" / "manifest.jsonl").read_text().splitlines()) == 1
+
+
+def test_load_latest_snapshot_reads_committed_canonical_data(tmp_path: Path):
+    saved = persist_snapshot(
+        sample_df(),
+        dataset="roni",
+        source="NOAA CPC",
+        source_url="https://example.invalid/roni",
+        required_columns=REQUIRED,
+        root=tmp_path,
+    )
+
+    loaded, metadata = load_latest_snapshot("roni", REQUIRED, root=tmp_path)
+
+    assert loaded.equals(sample_df())
+    assert metadata.snapshot_id == saved.snapshot_id
+    assert metadata.dataset == "roni"
+    assert metadata.source == "NOAA CPC"
+
+
+def test_load_latest_snapshot_fails_if_manifest_snapshot_is_missing(tmp_path: Path):
+    dataset_dir = tmp_path / "roni"
+    dataset_dir.mkdir(parents=True)
+    (dataset_dir / "manifest.jsonl").write_text(
+        '{"dataset":"roni","source":"NOAA CPC","source_url":"https://example.invalid/roni",'
+        '"retrieved_at":"2026-09-04T00:00:00+00:00","snapshot_id":"missing",'
+        '"rows":1,"start":null,"end":null,"validation":{}}\n',
+        encoding="utf-8",
+    )
+
+    try:
+        load_latest_snapshot("roni", REQUIRED, root=tmp_path)
+        assert False, "expected missing snapshot failure"
+    except FileNotFoundError:
+        pass
 
 
 def test_ingest_does_not_fallback_when_live_loader_fails(tmp_path: Path):
