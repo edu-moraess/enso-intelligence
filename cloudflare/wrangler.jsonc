@@ -1,0 +1,20 @@
+{
+  "$schema": "https://developers.cloudflare.com/workers/wrangler/config-schema.json",
+  "name": "enso-data-foundation",
+  "main": "./worker.js",
+  "compatibility_date": "2026-09-01",
+  "triggers": {
+    "crons": ["17 3 * * *"]
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "vars": {
+    "GITHUB_REPOSITORY": "edu-moraess/enso-intelligence",
+    "GIT_BRANCH": "main"
+  },
+  "secrets": {
+    "required": ["GITHUB_TOKEN"]
+  }
+}
