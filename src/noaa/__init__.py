@@ -14,13 +14,13 @@ from .cpc import load_oni as _parse_or_fetch_oni
 from .ersstv6 import get_ersst_status
 from .roni import fetch_roni as _fetch_roni
 from .roni import load_roni as _parse_or_fetch_roni
+from .soi import fetch_soi
 
 
 RONI_REQUIRED = ("date", "season", "year", "roni")
 ONI_REQUIRED = ("date", "season", "year", "oni")
 WEEKLY_NINO_REQUIRED = (
-    "date",
-    "nino12_sst", "nino12",
+    "date", "nino12_sst", "nino12",
     "nino3_sst", "nino3",
     "nino34_sst", "nino34",
     "nino4_sst", "nino4",
@@ -106,7 +106,6 @@ def ingest_nino_indices():
     )
 
 
-# Parser/backward-compatible names remain available to tests and ingestion code.
 def load_roni(text=None):
     if text is not None:
         return _parse_or_fetch_roni(text)
@@ -132,6 +131,7 @@ __all__ = [
     "load_oni",
     "fetch_nino_indices",
     "load_nino_indices",
+    "fetch_soi",
     "ingest_roni",
     "ingest_oni",
     "ingest_nino_indices",
