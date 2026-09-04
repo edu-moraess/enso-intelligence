@@ -177,6 +177,53 @@ def persist_snapshot(
     return metadata
 
 
+def load_latest_snapshot(
+    dataset: str,
+    required_columns: tuple[str, ...],
+    *,
+    root: Path = DEFAULT_ROOT,
+) -> tuple[pd.DataFrame, SnapshotMetadata]:
+    """Load the latest committed canonical snapshot for an observatory dataset.
+
+    This is the read path for the Streamlit observatory. It does not contact
+    NOAA and it never falls back to an older snapshot when the latest manifest
+    entry or its CSV is unavailable.
+    """
+    dataset_dir = root / dataset
+    manifest_path = dataset_dir / "manifest.jsonl"
+    if not manifest_path.exists():
+        raise FileNotFoundError(f"Foundation manifest not found: {manifest_path}")
+
+    lines = [line for line in manifest_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    if not lines:
+        raise FileNotFoundError(f"Foundation manifest is empty: {manifest_path}")
+
+    entry = json.loads(lines[-1])
+    snapshot_id = entry["snapshot_id"]
+    csv_path = dataset_dir / f"{snapshot_id}.csv"
+    if not csv_path.exists():
+        raise FileNotFoundError(f"Foundation snapshot not found: {csv_path}")
+
+    df = pd.read_csv(csv_path, parse_dates=["date"] if "date" in required_columns else None)
+    canonical = canonicalize(df, required_columns)
+    validation = validate_dataset(canonical, required_columns)
+    if not validation.valid:
+        raise ValueError(f"Foundation snapshot validation failed: {validation.message}")
+
+    metadata = SnapshotMetadata(
+        dataset=entry["dataset"],
+        source=entry["source"],
+        source_url=entry["source_url"],
+        retrieved_at=entry["retrieved_at"],
+        snapshot_id=snapshot_id,
+        rows=len(canonical),
+        start=entry.get("start"),
+        end=entry.get("end"),
+        validation=validation,
+    )
+    return canonical, metadata
+
+
 def ingest_and_archive(
     loader: Callable[[], Tuple[Optional[pd.DataFrame], object]],
     *,
