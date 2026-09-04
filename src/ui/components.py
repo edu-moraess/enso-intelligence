@@ -39,9 +39,11 @@ def apply_light_theme() -> None:
         .section-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; margin-bottom: 0.35rem; }
         .section-title { margin: 0; color: #111827; font-size: 1.35rem; font-weight: 700; letter-spacing: -0.025em; }
         .section-subtitle { color: #64748b; font-size: 0.84rem; margin-top: 0.2rem; }
+        .section-rule { border-top: 1px solid #dbe2ea; margin: 1.65rem 0 1.05rem; }
         .provenance-note { background: #f8fafc; border: 1px solid #dbe5f0; border-radius: 12px; padding: 0.85rem 1rem; color: #475569; font-size: 0.86rem; line-height: 1.5; }
         .block-container { padding-top: 1.25rem; max-width: 1100px; }
         hr { border: none; border-top: 1px solid #e5e7eb; margin: 1.5rem 0; }
+        .js-plotly-plot .modebar { display: none !important; }
         </style>
         """,
         unsafe_allow_html=True,
@@ -60,6 +62,7 @@ def section_header(title: str, subtitle: Optional[str] = None) -> None:
             st.plotly_chart(regime_fig, use_container_width=True, config={"displaylogo": False, "responsive": True})
             st.markdown('<div class="chart-note">Episódios não neutros com pelo menos cinco estações sobrepostas consecutivas. Passe o cursor para ver duração e pico do RONI.</div>', unsafe_allow_html=True)
 
+    st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
     st.markdown(f'<div class="section-title">{title}</div>', unsafe_allow_html=True)
     if subtitle:
         st.markdown(f'<div class="section-subtitle">{subtitle}</div>', unsafe_allow_html=True)
