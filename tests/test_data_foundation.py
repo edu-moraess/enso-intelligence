@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pandas as pd
-import pytest
 
 from src.data.foundation import ingest_and_archive, persist_snapshot, validate_dataset
 
@@ -26,6 +25,20 @@ def test_validation_accepts_clean_canonical_series():
     assert result.duplicate_dates == 0
 
 
+def test_validation_accepts_season_and_year_metadata():
+    df = pd.DataFrame(
+        {
+            "date": pd.to_datetime(["2026-07-15", "2026-08-15"]),
+            "season": ["JJA", "JAS"],
+            "year": [2026, 2026],
+            "roni": [1.2, 1.3],
+        }
+    )
+    result = validate_dataset(df, ("date", "season", "year", "roni"))
+    assert result.valid
+    assert result.non_numeric_values == ()
+
+
 def test_validation_rejects_duplicate_dates():
     df = sample_df()
     df.loc[2, "date"] = df.loc[1, "date"]
@@ -40,7 +53,7 @@ def test_validation_rejects_missing_columns():
     assert result.missing_required == ("roni",)
 
 
-def test_validation_rejects_non_numeric_index_values():
+def test_validation_rejects_non_numeric_observation_values():
     df = sample_df()
     df.loc[1, "roni"] = "bad"
     result = validate_dataset(df, REQUIRED)
