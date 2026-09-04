@@ -13,7 +13,8 @@ def _configure_observatory_chart(fig):
     if not isinstance(fig, go.Figure):
         return fig
 
-    current_margin = dict(fig.layout.margin) if fig.layout.margin else {}
+    margin = fig.layout.margin
+    current_margin = margin.to_plotly_json() if margin is not None else {}
     fig.update_layout(
         margin=dict(
             l=max(72, int(current_margin.get("l") or 0)),
@@ -27,7 +28,6 @@ def _configure_observatory_chart(fig):
     fig.update_yaxes(automargin=True)
     fig.update_traces(cliponaxis=False)
 
-    # Keep ENSO threshold labels inside the plot instead of against the Y axis.
     for annotation in fig.layout.annotations or []:
         text = str(annotation.text or "")
         if text.startswith("El Niño +0.5") or text.startswith("La Niña"):
@@ -100,26 +100,18 @@ def apply_light_theme() -> None:
         .js-plotly-plot .modebar { display: none !important; }
         .source-row { background: transparent; border: 0; border-bottom: 1px solid #eef2f6; border-radius: 0; padding: .32rem 0; margin: 0; }
         .source-row small { color: #64748b; font-size: .72rem; }
-
-        /* Observatory polish: remove duplicated status text and keep the methodology flow compact. */
         .insight { display: none !important; }
         .flow { flex-wrap: nowrap !important; gap: .35rem !important; }
         .flow-step { padding: .52rem .62rem; font-size: .82rem; white-space: nowrap; }
         .flow-arrow { flex: 0 0 auto; }
         .executive-note { line-height: 1.7; }
         .analogue-card { min-height: 82px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; }
-
-        /* Keep Plotly range controls fully visible without shifting them outside the plot container. */
         .js-plotly-plot .rangeselector { transform: none !important; }
-        /* ENSO Signal polish: keep chart controls compact, legible, and visually secondary. */
         .js-plotly-plot .rangeselector text { font-size: 10px !important; }
         .js-plotly-plot .rangeslider-container { opacity: .82; }
         .stPlotlyChart { margin-top: .15rem; overflow: visible !important; }
         .stPlotlyChart > div, .js-plotly-plot, .plot-container, .svg-container { max-width: 100% !important; }
-
-        @media (min-width:701px) and (max-width:1100px) {
-            .flow { flex-wrap: wrap !important; }
-        }
+        @media (min-width:701px) and (max-width:1100px) { .flow { flex-wrap: wrap !important; } }
         @media (max-width:700px) {
             .block-container { padding: .9rem .75rem 2.5rem !important; }
             .obs-card { padding: .9rem 1rem; margin-bottom: .6rem; }
@@ -144,9 +136,7 @@ def apply_light_theme() -> None:
 
 
 def render_regime_timeline(roni_df) -> None:
-    """Render the RONI regime timeline using data already loaded by the app."""
     from src.ui.regime_timeline import build_regime_timeline
-
     regime_fig = build_regime_timeline(roni_df)
     if regime_fig is None:
         return
@@ -158,14 +148,12 @@ def render_regime_timeline(roni_df) -> None:
 
 
 def section_header(title: str, subtitle: Optional[str] = None) -> None:
-    """Render a section header; callers own section separators to avoid duplicates."""
     st.markdown(f'<div class="section-title">{title}</div>', unsafe_allow_html=True)
     if subtitle:
         st.markdown(f'<div class="section-subtitle">{subtitle}</div>', unsafe_allow_html=True)
 
 
 def metric_card(label: str, value: str, detail: Optional[str] = None) -> None:
-    """Render a compact metric card used by the one-page observatory."""
     current_labels = {"Estado atual", "RONI", "Último período", "3-season change"}
     current_class = " current-condition-card"
     if label == "Estado atual":
@@ -182,18 +170,11 @@ def metric_card(label: str, value: str, detail: Optional[str] = None) -> None:
 
 
 def render_footer() -> None:
-    """Render the compact attribution footer."""
-    st.markdown(
-        '<div class="obs-footer">Data: NOAA CPC · PSL · NCEI | ARQTECH LABS · © 2026</div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown('<div class="obs-footer">Data: NOAA CPC · PSL · NCEI | ARQTECH LABS · © 2026</div>', unsafe_allow_html=True)
 
 
 def status_badge(status: str) -> str:
-    mapping = {
-        "Connected": "badge-ok", "Updated": "badge-ok", "Available": "badge-ok",
-        "Warning": "badge-warn", "Error": "badge-err", "Unavailable": "badge-err",
-    }
+    mapping = {"Connected": "badge-ok", "Updated": "badge-ok", "Available": "badge-ok", "Warning": "badge-warn", "Error": "badge-err", "Unavailable": "badge-err"}
     cls = mapping.get(status, "badge-info")
     return f'<span class="badge {cls}">{status}</span>'
 
