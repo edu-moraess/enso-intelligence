@@ -34,8 +34,8 @@ def apply_light_theme() -> None:
         .badge-neu { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
         .flow-step { display: inline-block; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0.35rem 0.7rem; margin: 0.2rem; font-size: 0.85rem; color: #374151; }
         .section-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; margin-bottom: 0.35rem; }
-        .section-title { margin: 0; color: #111827; font-size: 1.35rem; font-weight: 700; letter-spacing: -0.025em; }
-        .section-subtitle { color: #64748b; font-size: 0.84rem; margin-top: 0.2rem; }
+        .section-title { margin: 0; color: #111827; font-size: 1.42rem; font-weight: 750; letter-spacing: -0.025em; }
+        .section-subtitle { color: #64748b; font-size: 0.84rem; margin-top: 0.22rem; line-height: 1.45; }
         .section-rule { border-top: 1px solid #dbe2ea; margin: 1.65rem 0 1.05rem; }
         .provenance-note { background: #f8fafc; border: 1px solid #dbe5f0; border-radius: 12px; padding: 0.85rem 1rem; color: #475569; font-size: 0.86rem; line-height: 1.5; }
         .block-container { padding-top: 1.25rem; max-width: 1100px; }
@@ -44,7 +44,7 @@ def apply_light_theme() -> None:
         @media (max-width:700px) {
             .block-container { padding: .9rem .75rem 2.5rem !important; }
             .obs-card { padding: .9rem 1rem; margin-bottom: .6rem; }
-            .section-title { font-size: 1.15rem; }
+            .section-title { font-size: 1.18rem; }
             .section-subtitle { font-size: .78rem; line-height: 1.4; }
             .section-rule { margin: 1.25rem 0 .85rem; }
             .state-el-nino,.state-la-nina,.state-neutral { font-size: 1.55rem; }
@@ -71,8 +71,7 @@ def render_regime_timeline(roni_df) -> None:
 
 
 def section_header(title: str, subtitle: Optional[str] = None) -> None:
-    """Render a clean section header for the one-page observatory."""
-    st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
+    """Render a section header; callers own section separators to avoid duplicates."""
     st.markdown(f'<div class="section-title">{title}</div>', unsafe_allow_html=True)
     if subtitle:
         st.markdown(f'<div class="section-subtitle">{subtitle}</div>', unsafe_allow_html=True)
