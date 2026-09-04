@@ -61,6 +61,26 @@ def _read_foundation(dataset, required_columns, label):
         return None, _foundation_error(label, exc)
 
 
+def _with_weekly_nino_aliases(df: pd.DataFrame | None) -> pd.DataFrame | None:
+    """Expose the UI's historical SSTA aliases on canonical Foundation data.
+
+    The Foundation stores the canonical fields (e.g. ``nino34``) to keep the
+    CSV schema stable. The existing observatory UI uses explicit ``*_ssta``
+    names, so the aliases must also be restored when reading a committed
+    snapshot, not only when parsing NOAA's live ASCII response.
+    """
+    if df is None or df.empty:
+        return df
+
+    work = df.copy()
+    for region in ("nino12", "nino3", "nino34", "nino4"):
+        source = region
+        alias = f"{region}_ssta"
+        if source in work.columns and alias not in work.columns:
+            work[alias] = work[source]
+    return work
+
+
 def fetch_roni():
     return _read_foundation("roni", RONI_REQUIRED, "Relative Oceanic Niño Index (RONI)")
 
@@ -70,11 +90,12 @@ def fetch_oni():
 
 
 def fetch_nino_indices():
-    return _read_foundation(
+    df, meta = _read_foundation(
         "weekly_nino",
         WEEKLY_NINO_REQUIRED,
         "Weekly Niño region SSTA (OISST.v2.1, 1991–2020)",
     )
+    return _with_weekly_nino_aliases(df), meta
 
 
 def fetch_soi():
