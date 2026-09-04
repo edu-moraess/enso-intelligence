@@ -44,6 +44,15 @@ def apply_light_theme() -> None:
         .block-container { padding-top: 1.25rem; max-width: 1100px; }
         hr { border: none; border-top: 1px solid #e5e7eb; margin: 1.5rem 0; }
         .js-plotly-plot .modebar { display: none !important; }
+        @media (max-width:700px) {
+            .block-container { padding: .9rem .75rem 2.5rem !important; }
+            .obs-card { padding: .9rem 1rem; margin-bottom: .6rem; }
+            .section-title { font-size: 1.15rem; }
+            .section-subtitle { font-size: .78rem; line-height: 1.4; }
+            .section-rule { margin: 1.25rem 0 .85rem; }
+            .state-el-nino,.state-la-nina,.state-neutral { font-size: 1.55rem; }
+            .flow-step { display: block; margin: .25rem 0; text-align: center; }
+        }
         </style>
         """,
         unsafe_allow_html=True,
