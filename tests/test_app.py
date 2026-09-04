@@ -7,13 +7,14 @@ APP = (Path(__file__).parents[1] / "app.py").read_text(encoding="utf-8")
 
 def test_main_page_contains_required_observatory_sections():
     for heading in (
-        "ENSO State",
-        "RONI History",
-        "Pacific Ocean",
-        "Climate Context",
-        "Methodology",
-        "RONI vs ONI",
-        "Data & Sources",
+        "CURRENT CONDITIONS",
+        "ENSO SIGNAL",
+        "HISTORICAL ANALOGUES",
+        "ENSO REGIME TIMELINE",
+        "PACIFIC CONDITIONS",
+        "ANALYTICAL VIEW",
+        "METHODOLOGY",
+        "DATA & PROVENANCE",
     ):
         assert heading in APP
     assert "Use the sidebar to navigate" not in APP
