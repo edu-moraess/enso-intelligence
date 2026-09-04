@@ -61,6 +61,10 @@ def apply_light_theme() -> None:
 
         /* Keep Plotly range controls fully visible without shifting them outside the plot container. */
         .js-plotly-plot .rangeselector { transform: none !important; }
+        /* ENSO Signal polish: keep chart controls compact, legible, and visually secondary. */
+        .js-plotly-plot .rangeselector text { font-size: 10px !important; }
+        .js-plotly-plot .rangeslider-container { opacity: .82; }
+        .stPlotlyChart { margin-top: .15rem; }
 
         @media (min-width:701px) and (max-width:1100px) {
             .flow { flex-wrap: wrap !important; }
@@ -80,6 +84,7 @@ def apply_light_theme() -> None:
             .flow { display: block !important; }
             .flow-step { display: block; margin: .25rem 0; text-align: center; white-space: normal; }
             .analogue-card { min-height: 74px; }
+            .js-plotly-plot .rangeselector text { font-size: 9px !important; }
         }
         </style>
         """,
