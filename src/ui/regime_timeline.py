@@ -59,6 +59,7 @@ def build_regime_timeline(df: pd.DataFrame, minimum_periods: int = 5) -> go.Figu
             line=dict(color="#eef2f7", width=14),
             hoverinfo="skip",
             showlegend=False,
+            cliponaxis=False,
         ))
 
     for episode in runs:
@@ -78,23 +79,32 @@ def build_regime_timeline(df: pd.DataFrame, minimum_periods: int = 5) -> go.Figu
                 "Peak RONI: %{customdata[2]:+.2f} °C<extra></extra>"
             ),
             showlegend=False,
+            cliponaxis=False,
         ))
 
     fig.update_layout(
-        height=215,
-        margin=dict(l=78, r=14, t=12, b=30),
+        height=225,
+        margin=dict(l=92, r=42, t=14, b=48),
         plot_bgcolor="#fff",
         paper_bgcolor="#fff",
-        xaxis=dict(showgrid=False, zeroline=False, automargin=True),
+        xaxis=dict(
+            showgrid=False,
+            zeroline=False,
+            automargin=True,
+            tickpadding=7,
+            tickfont=dict(size=10),
+        ),
         yaxis=dict(
             tickmode="array",
             tickvals=[0, 1, 2],
             ticktext=state_labels,
             tickfont=dict(size=11),
+            tickpadding=8,
             showgrid=False,
             zeroline=False,
             fixedrange=True,
             range=[-0.35, 2.35],
+            automargin=True,
         ),
         hovermode="closest",
         showlegend=False,
