@@ -47,6 +47,36 @@ E.N.S.O reads live products published by **NOAA Climate Prediction Center (CPC)*
 
 The application displays the observation period separately from the retrieval/update timestamp. If an official source cannot be loaded or parsed, the application reports the data as unavailable rather than inventing a value.
 
+## Data Foundation
+
+E.N.S.O now includes a lightweight **Data Foundation** between NOAA acquisition and analysis. It is intentionally smaller than a conventional data platform: no database cluster, orchestration system, or microservice layer is required for the core observatory.
+
+```text
+NOAA CPC
+   ↓
+Live acquisition
+   ↓
+Canonicalization + validation
+   ↓
+Content-addressed snapshots
+   ↓
+Versioned provenance
+   ↓
+Analysis Engine
+   ↓
+Streamlit observatory
+```
+
+The foundation provides five controls:
+
+- **Ingestion:** repeatable acquisition of the live RONI, ONI and weekly Niño products.
+- **Canonical dataset:** stable fields and chronological ordering before downstream analysis.
+- **Validation:** required columns, dates, duplicates and numeric observations are checked before a snapshot is accepted.
+- **Versioning:** snapshots are identified by a SHA-256 content hash, so revisions create a new immutable snapshot rather than silently overwriting the previous one.
+- **Provenance:** each snapshot records dataset, source, source URL, retrieval time, row count and validation result.
+
+A scheduled GitHub Actions job can update the durable snapshot history daily and can also be triggered manually. The Streamlit application continues to use **live NOAA data as its source of truth**; archived snapshots are not used as a silent fallback when NOAA is unavailable.
+
 ## Scientific methodology
 
 ### ENSO phase
@@ -90,6 +120,11 @@ app.py
   │     ├── RONI
   │     ├── ONI
   │     └── Weekly Niño indices
+  ├── Data Foundation
+  │     ├── canonicalization
+  │     ├── validation
+  │     ├── content-addressed snapshots
+  │     └── provenance manifest
   ├── Analysis
   │     ├── ENSO classification
   │     ├── intensity bands
@@ -99,12 +134,13 @@ app.py
 
 src/
 ├── analysis/      # ENSO classification, trends and event logic
-├── data/          # configuration, thresholds and metadata
+├── data/          # configuration, thresholds, metadata and foundation
 ├── noaa/          # NOAA CPC / NCEI access and parsers
 └── ui/            # observatory theme and reusable components
 
 tests/             # offline unit and integrity tests
-scripts/           # validation helpers
+scripts/           # validation and foundation ingestion helpers
+.github/workflows/ # scheduled NOAA foundation refresh
 ```
 
 The application keeps the interactive path deliberately small: the core observatory uses the published index products directly and does not require a large gridded SST download.
@@ -123,7 +159,7 @@ python -m compileall -q .
 pytest -q
 ```
 
-The test suite covers ENSO classification, NOAA parsing, application integrity, and regime-timeline logic.
+The test suite covers ENSO classification, NOAA parsing, application integrity, regime-timeline logic, and Data Foundation validation/versioning behavior.
 
 ## Design principles
 
@@ -133,6 +169,7 @@ The test suite covers ENSO classification, NOAA parsing, application integrity, 
 - **Primary signal is explicit:** RONI is the operational core; ONI is complementary.
 - **Traceable interpretation:** methodology and provenance remain visible in the product.
 - **Focused scope:** the observatory prioritizes clarity over feature accumulation.
+- **Infrastructure follows need:** the Data Foundation stays lightweight until scale or new consumers justify additional infrastructure.
 
 ## Limitations
 
@@ -142,12 +179,13 @@ The test suite covers ENSO classification, NOAA parsing, application integrity, 
 - Weekly and seasonal indices summarize different products and can legitimately diverge.
 - Climate-impact context is qualitative; the core application does not claim validated regional impact prediction for Brazil.
 - No gridded Pacific anomaly map is required for core operation.
+- The Streamlit runtime archive is ephemeral; durable snapshot history is maintained by the scheduled GitHub ingestion job.
 
 ## Project status
 
-**v1.0-ready operational observatory.**
+**v1.1-ready data foundation.**
 
-The current scope is intentionally frozen around ENSO monitoring, historical context, and transparent provenance. Future research can be developed as separate, explicitly validated modules rather than expanding the core observatory indiscriminately.
+The core observatory remains intentionally frozen around ENSO monitoring, historical context, and transparent provenance. The Data Foundation adds controlled ingestion, validation, content-addressed versioning, and durable snapshot refresh without expanding the user-facing product into an infrastructure dashboard.
 
 ## Attribution
 
