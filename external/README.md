@@ -8,7 +8,12 @@ The ENSO Data Foundation is scheduled outside GitHub Actions using a Cloudflare 
 NOAA CPC → Cloudflare Worker → validation/versioning → GitHub Contents API → data/foundation/
 ```
 
-The Worker does not clone or host the private repository. It fetches the three official NOAA CPC products directly and publishes only validated, content-addressed snapshots.
+The Worker does not clone or host the repository. It fetches four official NOAA CPC products directly and publishes only validated, content-addressed snapshots:
+
+- RONI
+- ONI
+- Weekly Niño regional SST anomalies
+- Southern Oscillation Index (SOI)
 
 ## Secret
 
@@ -27,11 +32,11 @@ npx wrangler secret put GITHUB_TOKEN
 npx wrangler deploy
 ```
 
-The configured Cron Trigger runs daily at `03:17 UTC` (`00:17 BRT`). Cloudflare Cron Triggers use UTC.
+The configured Cron Trigger runs daily at `04:30 UTC` (`01:30 BRT`). Cloudflare Cron Triggers use UTC.
 
 ## Security model
 
-- Repository remains private.
+- Repository access is scoped to the required GitHub Contents permission.
 - No repository clone is required by the Worker.
 - GitHub credential is a Cloudflare encrypted secret.
 - Non-secret configuration is versioned in `wrangler.jsonc`.
