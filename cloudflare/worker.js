@@ -27,6 +27,8 @@ const DATASETS = {
 
 const SEASONS = new Set(["DJF", "JFM", "FMA", "MAM", "AMJ", "MJJ", "JJA", "JAS", "ASO", "SON", "OND", "NDJ"]);
 const CENTRAL_MONTH = { DJF: 1, JFM: 2, FMA: 3, MAM: 4, AMJ: 5, MJJ: 6, JJA: 7, JAS: 8, ASO: 9, SON: 10, OND: 11, NDJ: 12 };
+const DATASET_RETRIES = 2;
+const RETRY_DELAY_MS = 750;
 
 function pad(n) { return String(n).padStart(2, "0"); }
 function seasonDate(season, year) { return `${year}-${pad(CENTRAL_MONTH[season] || 6)}-15T00:00:00`; }
@@ -195,15 +197,30 @@ async function publishDataset(env, dataset, rows, required, sourceUrl, datasetLa
   return { dataset, snapshotId, rows: canonical.length, created: !existingCsv };
 }
 
+function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
+
+async function fetchDatasetWithRetry(name, spec) {
+  let lastError;
+  for (let attempt = 0; attempt <= DATASET_RETRIES; attempt += 1) {
+    try {
+      const res = await fetch(spec.url, { headers: { "User-Agent": USER_AGENT } });
+      if (!res.ok) throw new Error(`NOAA ${name}: ${res.status}`);
+      return await res.text();
+    } catch (error) {
+      lastError = error;
+      if (attempt < DATASET_RETRIES) await sleep(RETRY_DELAY_MS * (attempt + 1));
+    }
+  }
+  throw lastError;
+}
+
 async function run(env) {
   if (!env.GITHUB_TOKEN) throw new Error("GITHUB_TOKEN secret is required");
   const results = [];
   const errors = [];
   for (const [name, spec] of Object.entries(DATASETS)) {
     try {
-      const res = await fetch(spec.url, { headers: { "User-Agent": USER_AGENT } });
-      if (!res.ok) throw new Error(`NOAA ${name}: ${res.status}`);
-      const text = await res.text();
+      const text = await fetchDatasetWithRetry(name, spec);
       const rows = name === "roni" ? parseRonI(text) : name === "oni" ? parseOni(text) : name === "weekly_nino" ? parseWeekly(text) : parseSoi(text);
       const label = name === "roni"
         ? "Relative Oceanic Niño Index (RONI)"
