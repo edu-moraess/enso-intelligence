@@ -25,13 +25,13 @@ WEEKLY_NINO_REQUIRED = (
 )
 
 
-def _foundation_metadata(snapshot) -> SeriesMetadata:
+def _foundation_metadata(snapshot, df) -> SeriesMetadata:
     """Expose foundation provenance through the existing metadata contract."""
     return SeriesMetadata(
         source=snapshot.source,
         dataset=snapshot.dataset,
-        start=None,
-        end=None,
+        start=pd.to_datetime(df["date"]).min().to_pydatetime() if "date" in df.columns else None,
+        end=pd.to_datetime(df["date"]).max().to_pydatetime() if "date" in df.columns else None,
         last_update=None,
         n_records=snapshot.rows,
         status=DataStatus.UPDATED,
@@ -40,22 +40,41 @@ def _foundation_metadata(snapshot) -> SeriesMetadata:
     )
 
 
+def _foundation_error(dataset: str, exc: Exception) -> SeriesMetadata:
+    """Return the existing metadata contract when the foundation cannot be read."""
+    return SeriesMetadata(
+        source="NOAA CPC",
+        dataset=dataset,
+        status=DataStatus.ERROR,
+        message=f"Foundation data unavailable: {exc}",
+    )
+
+
+def _read_foundation(dataset, required_columns, label):
+    try:
+        df, snapshot = load_latest_snapshot(dataset, required_columns)
+        return df, _foundation_metadata(snapshot, df)
+    except (FileNotFoundError, KeyError, ValueError, OSError, pd.errors.ParserError) as exc:
+        return None, _foundation_error(label, exc)
+
+
 def fetch_roni():
     """Load the latest committed RONI foundation snapshot for the observatory."""
-    df, snapshot = load_latest_snapshot("roni", RONI_REQUIRED)
-    return df, _foundation_metadata(snapshot)
+    return _read_foundation("roni", RONI_REQUIRED, "Relative Oceanic Niño Index (RONI)")
 
 
 def fetch_oni():
     """Load the latest committed ONI foundation snapshot for the observatory."""
-    df, snapshot = load_latest_snapshot("oni", ONI_REQUIRED)
-    return df, _foundation_metadata(snapshot)
+    return _read_foundation("oni", ONI_REQUIRED, "Oceanic Niño Index (ONI)")
 
 
 def fetch_nino_indices():
     """Load the latest committed weekly Niño foundation snapshot for the observatory."""
-    df, snapshot = load_latest_snapshot("weekly_nino", WEEKLY_NINO_REQUIRED)
-    return df, _foundation_metadata(snapshot)
+    return _read_foundation(
+        "weekly_nino",
+        WEEKLY_NINO_REQUIRED,
+        "Weekly Niño region SSTA (OISST.v2.1, 1991–2020)",
+    )
 
 
 # Explicit ingestion entry points used by the external Cloudflare automation.
