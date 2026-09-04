@@ -14,8 +14,15 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from src.analysis.enso import classify_enso_state, classify_intensity, compute_recent_trend
-from src.noaa import fetch_nino_indices, fetch_oni, fetch_roni, fetch_soi
-from src.ui.components import apply_light_theme, data_unavailable_message, metric_card, render_footer, render_regime_timeline, section_header
+from src.noaa import fetch_nino_indices, fetch_oni, fetch_roni
+from src.ui.components import (
+    apply_light_theme,
+    data_unavailable_message,
+    metric_card,
+    render_footer,
+    render_regime_timeline,
+    section_header,
+)
 
 st.set_page_config(
     page_title="ENSO Intelligence | Climate Observatory",
@@ -35,33 +42,26 @@ st.markdown(
 .hero-title { color:#0f172a; font-size:clamp(1.05rem,2vw,1.35rem); line-height:1.2; font-weight:750; letter-spacing:-.02em; margin-top:.25rem; }
 .hero p { color:#64748b; font-size:.78rem; letter-spacing:.01em; margin:.3rem 0 0; }
 .insight { background:#f8fafc; border:1px solid #e2e8f0; border-radius:13px; padding:.75rem 1rem; color:#334155; }
-.surface { background:#fff; border:1px solid #e2e8f0; border-radius:15px; padding:1.05rem 1.15rem; height:100%; }
-.surface h4 { margin:.02rem 0 .4rem; color:#0f172a; }
-.surface p { color:#475569; line-height:1.5; margin:0; }
-.source-row { background:#fff; border:1px solid #e2e8f0; border-radius:11px; padding:.7rem .9rem; margin:.4rem 0; }
-.source-row small { color:#64748b; }
-.section-rule { border-top:1px solid #e2e8f0; margin:2.35rem 0 1.4rem; }
-.section-subtitle { margin-bottom:.75rem; }
-.chart-meta { color:#64748b; font-size:.8rem; margin-bottom:.65rem; }
-.chart-note { color:#64748b; font-size:.8rem; margin-top:.65rem; margin-bottom:1.7rem; }
-.flow { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:.5rem; margin:.8rem 0; }
-.flow-step { background:#f8fafc; border:1px solid #dbe5f0; border-radius:10px; padding:.58rem .78rem; font-weight:700; color:#334155; }
-.flow-arrow { color:#94a3b8; font-size:1.1rem; }
 .executive-note { background:#f8fafc; border:1px solid #e2e8f0; border-radius:15px; padding:1rem 1.15rem; color:#334155; line-height:1.55; }
 .analogue-card { background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:.7rem .85rem; margin:.35rem 0; }
 .analogue-card strong { color:#0f172a; }
 .analogue-card small { color:#64748b; }
+.section-rule { border-top:1px solid #e2e8f0; margin:2.35rem 0 1.4rem; }
+.section-subtitle { margin-bottom:.75rem; }
+.chart-meta { color:#64748b; font-size:.8rem; margin-bottom:.65rem; }
+.flow { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:.5rem; margin:.8rem 0; }
+.flow-step { background:#f8fafc; border:1px solid #dbe5f0; border-radius:10px; padding:.58rem .78rem; font-weight:700; color:#334155; }
+.flow-arrow { color:#94a3b8; font-size:1.1rem; }
 @media print {
   @page { size:A4 portrait; margin:10mm 9mm; }
   html,body { width:100% !important; background:#fff !important; }
   .block-container { max-width:none !important; width:100% !important; padding:0 !important; }
   [data-testid="stAppViewContainer"],[data-testid="stAppViewBlockContainer"],.main { overflow:visible !important; }
-  .hero,.surface,.source-row,.insight,.executive-note,.flow,.analogue-card { break-inside:avoid; page-break-inside:avoid; }
+  .hero,.insight,.executive-note,.flow,.analogue-card { break-inside:avoid; page-break-inside:avoid; }
   .hero { box-shadow:none; margin-bottom:7mm; }
   .section-rule { break-after:avoid; page-break-after:avoid; }
   [data-testid="stVerticalBlock"] { overflow:visible !important; }
   .stPlotlyChart { break-inside:avoid; page-break-inside:avoid; overflow:visible !important; width:100% !important; }
-  .stPlotlyChart > div,.stPlotlyChart iframe,.js-plotly-plot,.plot-container,.svg-container { max-width:100% !important; width:100% !important; }
   .stButton,[data-testid="stToolbar"],[data-testid="stDecoration"],header,footer { display:none !important; }
 }
 @media (max-width:700px) {
@@ -73,8 +73,6 @@ st.markdown(
   .flow-step { margin:.25rem 0; text-align:center; }
   .flow-arrow { display:block; text-align:center; }
   .section-rule { margin:1.7rem 0 1rem; }
-  .section-subtitle { margin-bottom:.6rem; }
-  .chart-note { margin-bottom:1.25rem; }
 }
 </style>
 """,
@@ -96,21 +94,13 @@ def get_oni():
 def get_nino():
     """Load canonical weekly Niño data and expose UI-compatible SSTA aliases."""
     df, meta = fetch_nino_indices()
-
     if df is not None and not df.empty:
         df = df.copy()
         for region in ("nino12", "nino3", "nino34", "nino4"):
-            canonical = region
             alias = f"{region}_ssta"
-            if alias not in df.columns and canonical in df.columns:
-                df[alias] = pd.to_numeric(df[canonical], errors="coerce")
-
+            if alias not in df.columns and region in df.columns:
+                df[alias] = pd.to_numeric(df[region], errors="coerce")
     return df, meta
-
-
-@st.cache_data(ttl=300, show_spinner="Carregando SOI da Foundation…")
-def get_soi():
-    return fetch_soi()
 
 
 def window_start(x: pd.Series, years: int) -> pd.Timestamp:
@@ -118,7 +108,7 @@ def window_start(x: pd.Series, years: int) -> pd.Timestamp:
 
 
 def chart_layout(height: int, hovermode: str = "x", legend=None):
-    d = dict(
+    layout = dict(
         height=height,
         margin=dict(l=8, r=8, t=18, b=8),
         hovermode=hovermode,
@@ -129,15 +119,15 @@ def chart_layout(height: int, hovermode: str = "x", legend=None):
         yaxis=dict(zeroline=False, gridcolor="#edf2f7"),
     )
     if legend is not None:
-        d["legend"] = legend
-    return d
+        layout["legend"] = legend
+    return layout
 
 
 def find_historical_analogues(df: pd.DataFrame, window: int = 8, top_n: int = 3) -> list[dict]:
     """Find historical RONI windows with similar recent trajectories."""
     if df is None or df.empty or "roni" not in df.columns:
         return []
-    cols = [c for c in ["date", "season", "year", "roni"] if c in df.columns]
+    cols = [c for c in ("date", "season", "year", "roni") if c in df.columns]
     work = df[cols].copy().dropna(subset=["roni"]).reset_index(drop=True)
     if len(work) < window * 2:
         return []
@@ -169,7 +159,6 @@ def find_historical_analogues(df: pd.DataFrame, window: int = 8, top_n: int = 3)
 roni_df, roni_meta = get_roni()
 oni_df, oni_meta = get_oni()
 nino_df, nino_meta = get_nino()
-soi_df, soi_meta = get_soi()
 
 st.markdown(
     '<div class="hero"><div class="eyebrow">E.N.S.O</div><div class="hero-title">Operational ENSO Intelligence</div><p>A compact observational intelligence system for tracking ENSO state, evolution, and historical context.</p></div>',
@@ -200,7 +189,7 @@ else:
     st.markdown(f'<div class="insight" style="border-left:4px solid {state_color};"><strong>{state.value}</strong> · {intensity.value} intensity · RONI {roni_val:+.2f} °C · {period}</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
-    section_header("ENSO SIGNAL", "Sinal oceânico e atmosférico observado no sistema ENSO.")
+    section_header("ENSO SIGNAL", "Sinal oceânico principal observado no sistema ENSO.")
     x = pd.to_datetime(roni_df["date"]) if "date" in roni_df.columns else pd.to_datetime(roni_df.index)
     ymin = min(-2.2, float(roni_df["roni"].min()) - 0.2)
     ymax = max(2.2, float(roni_df["roni"].max()) + 0.2)
@@ -219,33 +208,6 @@ else:
     st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False, "responsive": True})
     with st.expander("Como interpretar"):
         st.markdown("O RONI mede a anomalia relativa da temperatura da superfície do mar na região Niño 3.4 em uma média móvel de três meses. Valores acima de +0,5 °C correspondem à faixa operacional de El Niño; valores abaixo de −0,5 °C correspondem à faixa de La Niña. As categorias de intensidade seguem as faixas de intensidade publicadas pelo CPC.")
-
-    ac1, ac2, ac3 = st.columns(3)
-    with ac1:
-        metric_card("Ocean", f"RONI {roni_val:+.2f} °C", f"{state.value} · {intensity.value}")
-    with ac2:
-        if soi_df is not None and not soi_df.empty and "soi" in soi_df.columns:
-            soi_latest = float(soi_df.iloc[-1]["soi"])
-            metric_card("Atmosphere", f"SOI {soi_latest:+.1f}", "negative · El Niño-consistent")
-        else:
-            metric_card("Atmosphere", "—", "SOI snapshot unavailable")
-    with ac3:
-        if soi_df is not None and len(soi_df) >= 3 and "soi" in soi_df.columns:
-            soi_3m = float(soi_df["soi"].astype(float).tail(3).mean())
-            persistence = "El Niño-consistent" if soi_3m < 0 else "La Niña-consistent" if soi_3m > 0 else "Neutral"
-            metric_card("Persistence", f"3-mo SOI {soi_3m:+.1f}", persistence)
-        else:
-            metric_card("Persistence", "—", "insufficient SOI history")
-    if soi_df is not None and not soi_df.empty and "soi" in soi_df.columns:
-        soi_latest_date = pd.to_datetime(soi_df.iloc[-1]["date"])
-        soi_latest = float(soi_df.iloc[-1]["soi"])
-        soi_30 = soi_df.tail(30)
-        fig_soi = go.Figure()
-        fig_soi.add_trace(go.Scatter(x=pd.to_datetime(soi_30["date"]), y=soi_30["soi"], mode="lines+markers", line=dict(color="#64748b", width=1.8), marker=dict(size=5), hovertemplate="%{x|%d %b %Y}<br>SOI: %{y:+.1f}<extra></extra>"))
-        fig_soi.add_hline(y=0, line_color="#94a3b8", line_width=1)
-        fig_soi.update_layout(**chart_layout(240, "x"))
-        st.plotly_chart(fig_soi, use_container_width=True, config={"displaylogo": False, "responsive": True})
-        st.markdown(f'<div class="chart-meta">Último SOI observado · {soi_latest_date.strftime("%d %b %Y")} · {soi_latest:+.1f}</div>', unsafe_allow_html=True)
 
     analogues = find_historical_analogues(roni_df, window=8, top_n=3)
     if analogues:
@@ -275,6 +237,7 @@ else:
 
     st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
     render_regime_timeline(roni_df)
+
     st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
     section_header("PACIFIC CONDITIONS", "Anomalias semanais de SST relativa nas quatro regiões Niño publicadas pela NOAA CPC.")
     if nino_df is None or nino_df.empty:
@@ -338,6 +301,6 @@ else:
 
     st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
     section_header("DATA & PROVENANCE", "Datasets and attribution used by the observatory.")
-    st.markdown('<div class="provenance-note">RONI · ONI · Weekly Niño indices · NOAA CPC / NCEI / PSL<br><span style="color:#64748b;font-size:.78rem;">Observation periods are shown separately from retrieval timestamps. Official values may be revised by NOAA.</span></div>', unsafe_allow_html=True)
+    st.markdown('<div class="executive-note">RONI · ONI · Weekly Niño indices · NOAA CPC / NCEI / PSL<br><span style="color:#64748b;font-size:.78rem;">Observation periods are shown separately from retrieval timestamps. Official values may be revised by NOAA.</span></div>', unsafe_allow_html=True)
 
 render_footer()
