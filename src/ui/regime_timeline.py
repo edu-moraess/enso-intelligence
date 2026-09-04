@@ -82,32 +82,31 @@ def build_regime_timeline(df: pd.DataFrame, minimum_periods: int = 5) -> go.Figu
             cliponaxis=False,
         ))
 
+    # Explicit, conservative margins: avoid edge clipping without relying on
+    # axis properties that vary across Plotly versions.
     fig.update_layout(
         height=225,
-        margin=dict(l=92, r=42, t=14, b=48),
+        margin=dict(l=92, r=56, t=14, b=52),
         plot_bgcolor="#fff",
         paper_bgcolor="#fff",
-        xaxis=dict(
-            showgrid=False,
-            zeroline=False,
-            automargin=True,
-            tickpadding=7,
-            tickfont=dict(size=10),
-        ),
-        yaxis=dict(
-            tickmode="array",
-            tickvals=[0, 1, 2],
-            ticktext=state_labels,
-            tickfont=dict(size=11),
-            tickpadding=8,
-            showgrid=False,
-            zeroline=False,
-            fixedrange=True,
-            range=[-0.35, 2.35],
-            automargin=True,
-        ),
-        hovermode="closest",
         showlegend=False,
+        hovermode="closest",
         font=dict(color="#475569"),
+    )
+    fig.update_xaxes(
+        showgrid=False,
+        zeroline=False,
+        tickfont=dict(size=10),
+        ticklen=0,
+    )
+    fig.update_yaxes(
+        tickmode="array",
+        tickvals=[0, 1, 2],
+        ticktext=state_labels,
+        tickfont=dict(size=11),
+        showgrid=False,
+        zeroline=False,
+        fixedrange=True,
+        range=[-0.35, 2.35],
     )
     return fig
