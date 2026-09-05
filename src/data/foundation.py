@@ -3,6 +3,11 @@
 The foundation is deliberately storage-light: it keeps canonical CSV snapshots
 and a manifest using only the Python standard library and pandas. Snapshots are
 archival metadata, never a fallback source for the live observatory.
+
+Temporal provenance is explicit: ``retrieved_at`` records when this repository
+fetched a snapshot, while ``available_at`` records when the information was
+actually available to a forecaster. The latter must never be inferred from
+retrieval time or from an undocumented lag.
 """
 
 from __future__ import annotations
@@ -17,7 +22,7 @@ from typing import Callable, Optional, Tuple
 import pandas as pd
 
 
-FOUNDATION_VERSION = "1.2"
+FOUNDATION_VERSION = "1.3"
 DEFAULT_ROOT = Path(__file__).resolve().parents[2] / "data" / "foundation"
 
 
@@ -38,7 +43,13 @@ class ValidationResult:
 
 @dataclass(frozen=True)
 class SnapshotMetadata:
-    """Provenance for one immutable content-addressed snapshot."""
+    """Provenance for one immutable content-addressed snapshot.
+
+    ``retrieved_at`` and ``available_at`` are intentionally separate. An
+    availability timestamp is optional until it has been established from
+    authoritative source evidence; ``None`` means that the snapshot is not yet
+    temporally validated for historical forecasting use.
+    """
 
     dataset: str
     source: str
@@ -49,6 +60,9 @@ class SnapshotMetadata:
     start: Optional[str]
     end: Optional[str]
     validation: ValidationResult
+    available_at: Optional[str] = None
+    availability_method: Optional[str] = None
+    availability_evidence: Optional[str] = None
 
 
 def _utc_iso() -> str:
@@ -141,8 +155,21 @@ def persist_snapshot(
     source_url: str,
     required_columns: tuple[str, ...],
     root: Path = DEFAULT_ROOT,
+    available_at: Optional[str] = None,
+    availability_method: Optional[str] = None,
+    availability_evidence: Optional[str] = None,
 ) -> SnapshotMetadata:
-    """Validate and persist an immutable content-addressed CSV snapshot."""
+    """Validate and persist an immutable content-addressed CSV snapshot.
+
+    Availability provenance is opt-in and explicit. Supplying ``available_at``
+    without a method/evidence is rejected so a temporal claim cannot enter the
+    Foundation without an auditable basis.
+    """
+    if available_at is not None and not availability_method:
+        raise ValueError("availability_method is required when available_at is supplied")
+    if available_at is not None and not availability_evidence:
+        raise ValueError("availability_evidence is required when available_at is supplied")
+
     canonical = canonicalize(df, required_columns)
     validation = validate_dataset(canonical, required_columns)
     if not validation.valid:
@@ -165,6 +192,9 @@ def persist_snapshot(
         start=str(canonical["date"].min()) if "date" in canonical.columns else None,
         end=str(canonical["date"].max()) if "date" in canonical.columns else None,
         validation=validation,
+        available_at=available_at,
+        availability_method=availability_method,
+        availability_evidence=availability_evidence,
     )
     manifest_path = dataset_dir / "manifest.jsonl"
     existing = manifest_path.read_text(encoding="utf-8").splitlines() if manifest_path.exists() else []
@@ -218,6 +248,9 @@ def load_latest_snapshot(
         start=entry.get("start"),
         end=entry.get("end"),
         validation=validation,
+        available_at=entry.get("available_at"),
+        availability_method=entry.get("availability_method"),
+        availability_evidence=entry.get("availability_evidence"),
     )
     return canonical, metadata
 
