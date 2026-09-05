@@ -9,7 +9,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from src.ml.availability import assert_available_at_or_before, require_available_at
+from src.ml.availability import require_available_at
 
 RONI_LAGS = (1, 2, 3, 6, 12)
 ONI_LAGS = (1, 3)
@@ -53,14 +53,11 @@ def _prepare_d20(d20: pd.DataFrame) -> pd.DataFrame:
     work = d20[["date", "d20_m", "available_at"]].copy()
     work["date"] = pd.to_datetime(work["date"], errors="coerce", utc=True)
     work["d20_m"] = pd.to_numeric(work["d20_m"], errors="coerce")
-    work["available_at"] = pd.to_datetime(work["available_at"], errors="coerce", utc=True)
-    work = work.dropna(subset=["date", "d20_m", "available_at"])
+    work = require_available_at(work, name="D20")
+    work = work.dropna(subset=["date", "d20_m"])
     if work.empty:
         raise ValueError("D20 table contains no valid rows")
 
-    require_available_at(work)
-    work["forecast_origin"] = work["date"]
-    assert_available_at_or_before(work)
     work["month"] = work["date"].dt.to_period("M").astype(str)
     work = work.sort_values("date").drop_duplicates("month", keep="last")
     return work
@@ -78,8 +75,8 @@ def build_feature_table(
     """Build a leakage-safe supervised table with target ``roni_t+1``.
 
     ``include_d20=True`` requires a D20 table with an explicit ``available_at``
-    column. D20 is joined by calendar month, then its availability is checked
-    against the RONI forecast origin. No nearest-date merge is permitted.
+    column. D20 is joined by calendar month, then filtered against the RONI
+    forecast origin. No nearest-date merge is permitted.
     """
     r = _clean_series(roni, "roni")
     o = _clean_series(oni, "oni")
@@ -98,20 +95,20 @@ def build_feature_table(
             raise ValueError("include_d20=True requires a non-empty D20 table")
         physical = _prepare_d20(d20)
         base["month"] = base["date"].dt.to_period("M").astype(str)
+        base["forecast_origin"] = pd.to_datetime(base["date"], utc=True)
         base = base.merge(
             physical[["month", "d20_m", "available_at"]],
             on="month",
             how="left",
             validate="one_to_one",
         )
-        base["forecast_origin"] = base["date"].dt.tz_localize("UTC")
-        base["d20_available"] = base["available_at"] <= base["forecast_origin"]
-        if base["d20_available"].any() and not base.loc[base["d20_available"], "available_at"].notna().all():
-            raise ValueError("Invalid D20 availability metadata")
-        base.loc[~base["d20_available"], "d20_m"] = np.nan
+        available = base["available_at"].notna() & (
+            base["available_at"] <= base["forecast_origin"]
+        )
+        base = base.loc[available].copy()
         base["d20_anomaly_m"] = base["d20_m"]
         base["d20_trend_3m_m"] = base["d20_m"].diff(3)
-        base = base.drop(columns=["month", "available_at", "forecast_origin", "d20_available"])
+        base = base.drop(columns=["month", "available_at", "forecast_origin"])
 
     features: dict[str, pd.Series] = {}
     for lag in RONI_LAGS:
