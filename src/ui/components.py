@@ -87,7 +87,7 @@ def _install_chart_guard() -> None:
 
 
 def apply_light_theme() -> None:
-    """Inject CSS for a clean light scientific observatory look."""
+    """Inject CSS for a clean light scientific observatory look and global navigation."""
     _install_chart_guard()
     st.markdown(
         """
@@ -163,6 +163,7 @@ def apply_light_theme() -> None:
         """,
         unsafe_allow_html=True,
     )
+    st.page_link("pages/1_ModelLBs.py", label="ModelLBs", icon="🧠")
 
 
 def render_regime_timeline(roni_df) -> None:
