@@ -41,7 +41,6 @@ def _train_now(roni_df, oni_df) -> dict:
     """Run the same auditable training pipeline used by automation."""
     from scripts.train_enso_ml import train
 
-    # The Streamlit process writes only the same model artifacts used by inference.
     return train(ROOT / "models")
 
 
@@ -68,7 +67,6 @@ def _render_training_panel(roni_df, oni_df) -> None:
         else (benchmark_payload or {}).get("winner")
     )
 
-    # Keep the primary action visually subordinate to the actual outlook.
     status_col, action_col = st.columns([4, 1], vertical_alignment="center")
     with status_col:
         if model_exists and metadata and metadata.get("status") == "production":
@@ -105,6 +103,10 @@ def _render_training_panel(roni_df, oni_df) -> None:
                     st.success(
                         "Validated model updated successfully. The previous champion remains protected unless the new benchmark wins."
                     )
+                    # The status/outlook above was rendered before training. Restart once
+                    # so the same run immediately reloads the freshly written production
+                    # artifacts and shows the actual ML outlook instead of stale state.
+                    st.rerun()
                 else:
                     status.update(
                         label="Champion unchanged",
