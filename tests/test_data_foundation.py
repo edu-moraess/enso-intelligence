@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from src.data.foundation import (
     ingest_and_archive,
@@ -143,3 +144,35 @@ def test_ingest_does_not_fallback_when_live_loader_fails(tmp_path: Path):
     assert df is None
     assert snapshot is None
     assert not (tmp_path / "roni").exists()
+
+
+def test_snapshot_provenance_distinguishes_retrieval_and_availability(tmp_path: Path):
+    saved = persist_snapshot(
+        sample_df(),
+        dataset="roni",
+        source="NOAA CPC",
+        source_url="https://example.invalid/roni",
+        required_columns=REQUIRED,
+        root=tmp_path,
+        available_at="2026-08-05T00:00:00Z",
+        availability_method="official_publication_schedule",
+        availability_evidence="NOAA CPC RONI page states the page is updated by the 5th of each month.",
+    )
+
+    assert saved.available_at == "2026-08-05T00:00:00Z"
+    assert saved.availability_method == "official_publication_schedule"
+    assert saved.availability_evidence.startswith("NOAA CPC")
+    assert saved.retrieved_at != saved.available_at
+
+
+def test_snapshot_rejects_unsupported_availability_claim(tmp_path: Path):
+    with pytest.raises(ValueError, match="availability_method"):
+        persist_snapshot(
+            sample_df(),
+            dataset="roni",
+            source="NOAA CPC",
+            source_url="https://example.invalid/roni",
+            required_columns=REQUIRED,
+            root=tmp_path,
+            available_at="2026-08-05T00:00:00Z",
+        )
