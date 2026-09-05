@@ -1,14 +1,15 @@
 """Feature construction for the one-step RONI ML experiment.
 
 The feature builder uses only observations available at time t to predict
-RONI at t+1. It deliberately keeps the feature set small and auditable.
+RONI at t+1. Physical features are opt-in and require an explicit
+``available_at`` timestamp so temporal leakage fails closed.
 """
 from __future__ import annotations
 
-from typing import Iterable
-
 import numpy as np
 import pandas as pd
+
+from src.ml.availability import assert_available_at_or_before, require_available_at
 
 RONI_LAGS = (1, 2, 3, 6, 12)
 ONI_LAGS = (1, 3)
@@ -42,14 +43,44 @@ def _monthly_nino(df: pd.DataFrame) -> pd.DataFrame:
     return monthly.drop(columns=["month"])
 
 
+def _prepare_d20(d20: pd.DataFrame) -> pd.DataFrame:
+    """Validate and normalize D20 information-time metadata."""
+    required = {"date", "d20_m", "available_at"}
+    missing = required.difference(d20.columns)
+    if missing:
+        raise ValueError(f"D20 table missing columns: {sorted(missing)}")
+
+    work = d20[["date", "d20_m", "available_at"]].copy()
+    work["date"] = pd.to_datetime(work["date"], errors="coerce", utc=True)
+    work["d20_m"] = pd.to_numeric(work["d20_m"], errors="coerce")
+    work["available_at"] = pd.to_datetime(work["available_at"], errors="coerce", utc=True)
+    work = work.dropna(subset=["date", "d20_m", "available_at"])
+    if work.empty:
+        raise ValueError("D20 table contains no valid rows")
+
+    require_available_at(work)
+    work["forecast_origin"] = work["date"]
+    assert_available_at_or_before(work)
+    work["month"] = work["date"].dt.to_period("M").astype(str)
+    work = work.sort_values("date").drop_duplicates("month", keep="last")
+    return work
+
+
 def build_feature_table(
     roni: pd.DataFrame,
     oni: pd.DataFrame,
     nino: pd.DataFrame | None = None,
+    d20: pd.DataFrame | None = None,
     *,
     include_regional: bool = False,
+    include_d20: bool = False,
 ) -> pd.DataFrame:
-    """Build a leakage-safe supervised table with target ``roni_t+1``."""
+    """Build a leakage-safe supervised table with target ``roni_t+1``.
+
+    ``include_d20=True`` requires a D20 table with an explicit ``available_at``
+    column. D20 is joined by calendar month, then its availability is checked
+    against the RONI forecast origin. No nearest-date merge is permitted.
+    """
     r = _clean_series(roni, "roni")
     o = _clean_series(oni, "oni")
     base = pd.merge(r, o, on="date", how="inner")
@@ -62,6 +93,26 @@ def build_feature_table(
             regional["month"] = regional["date"].dt.to_period("M")
             base = base.merge(regional.drop(columns=["date"]), on="month", how="left").drop(columns=["month"])
 
+    if include_d20:
+        if d20 is None or d20.empty:
+            raise ValueError("include_d20=True requires a non-empty D20 table")
+        physical = _prepare_d20(d20)
+        base["month"] = base["date"].dt.to_period("M").astype(str)
+        base = base.merge(
+            physical[["month", "d20_m", "available_at"]],
+            on="month",
+            how="left",
+            validate="one_to_one",
+        )
+        base["forecast_origin"] = base["date"].dt.tz_localize("UTC")
+        base["d20_available"] = base["available_at"] <= base["forecast_origin"]
+        if base["d20_available"].any() and not base.loc[base["d20_available"], "available_at"].notna().all():
+            raise ValueError("Invalid D20 availability metadata")
+        base.loc[~base["d20_available"], "d20_m"] = np.nan
+        base["d20_anomaly_m"] = base["d20_m"]
+        base["d20_trend_3m_m"] = base["d20_m"].diff(3)
+        base = base.drop(columns=["month", "available_at", "forecast_origin", "d20_available"])
+
     features: dict[str, pd.Series] = {}
     for lag in RONI_LAGS:
         features[f"roni_lag_{lag}"] = base["roni"].shift(lag)
@@ -73,6 +124,10 @@ def build_feature_table(
         if col in base.columns:
             for lag in (1, 3, 6, 12):
                 features[f"{region}_lag_{lag}"] = base[col].shift(lag)
+
+    if include_d20:
+        features["d20_anomaly_m"] = base["d20_anomaly_m"]
+        features["d20_trend_3m_m"] = base["d20_trend_3m_m"]
 
     for window in (3, 6, 12):
         features[f"roni_mean_{window}"] = base["roni"].rolling(window).mean().shift(1)
