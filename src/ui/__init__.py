@@ -15,10 +15,18 @@ from .components import (
 
 
 def render_regime_timeline(roni_df) -> None:
-    """Render ML controls/outlook immediately before the regime timeline."""
+    """Render the visible model workspace immediately before the regime timeline."""
     try:
         from src.ui.ml_outlook import render_ml_outlook
         from src.noaa import fetch_oni
+
+        st_html = (
+            '<div class="model-nav" aria-label="Navegação do observatório">'
+            '<a class="model-nav-tab active" href="#modelos-treinados">Modelos treinados</a>'
+            '</div>'
+        )
+        import streamlit as st
+        st.markdown(st_html, unsafe_allow_html=True)
 
         oni_df, _ = fetch_oni()
         render_ml_outlook(roni_df, oni_df)
