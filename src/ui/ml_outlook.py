@@ -16,24 +16,69 @@ METADATA_PATH = ROOT / "models" / "metadata.json"
 BENCHMARK_PATH = ROOT / "models" / "benchmark.json"
 
 
+def _load_benchmark() -> dict | None:
+    if not BENCHMARK_PATH.exists():
+        return None
+    try:
+        return json.loads(BENCHMARK_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return None
+
+
 def _render_benchmark(results: list[dict], winner: str | None) -> None:
-    """Render benchmark details as secondary technical information."""
-    with st.expander("Validation benchmark", expanded=False):
-        st.caption("Expanding walk-forward validation · no random split")
+    """Render the model comparison as a compact visual benchmark."""
+    if not results:
+        return
+
+    names = [str(item.get("name", "—")) for item in results]
+    rmse = [float(item.get("rmse", 0.0)) for item in results]
+    mae = [float(item.get("mae", 0.0)) for item in results]
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Bar(
+            x=names,
+            y=rmse,
+            name="RMSE",
+            text=[f"{value:.3f}" for value in rmse],
+            textposition="outside",
+            hovertemplate="%{x}<br>RMSE: %{y:.3f} °C<extra></extra>",
+        )
+    )
+    fig.add_trace(
+        go.Bar(
+            x=names,
+            y=mae,
+            name="MAE",
+            text=[f"{value:.3f}" for value in mae],
+            textposition="outside",
+            hovertemplate="%{x}<br>MAE: %{y:.3f} °C<extra></extra>",
+        )
+    )
+    fig.update_layout(
+        height=300,
+        margin=dict(l=8, r=8, t=22, b=8),
+        barmode="group",
+        plot_bgcolor="#fff",
+        paper_bgcolor="#fff",
+        hovermode="x unified",
+        xaxis=dict(showgrid=False),
+        yaxis=dict(title="Error (°C)", gridcolor="#edf2f7", zeroline=False),
+        legend=dict(orientation="h", y=1.08, x=0),
+    )
+    st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False, "responsive": True})
+    st.caption("Expanding walk-forward validation · no random split · lower is better.")
+
+    with st.expander("Validation details", expanded=False):
         for result in results:
             name = result.get("name", "—")
-            rmse = float(result.get("rmse", 0.0))
-            mae = float(result.get("mae", 0.0))
+            rmse_value = float(result.get("rmse", 0.0))
+            mae_value = float(result.get("mae", 0.0))
             n_test = int(result.get("n_test", 0))
-            if name == "Persistence":
-                label = "Baseline"
-            elif name == winner:
-                label = "🏆 Champion"
-            else:
-                label = "Candidate"
+            label = "🏆 Champion" if name == winner else ("Baseline" if name == "Persistence" else "Candidate")
             st.markdown(
-                f"`{name}` · **{label}** · RMSE {rmse:.3f} °C · "
-                f"MAE {mae:.3f} °C · n={n_test}"
+                f"`{name}` · **{label}** · RMSE {rmse_value:.3f} °C · "
+                f"MAE {mae_value:.3f} °C · n={n_test}"
             )
 
 
@@ -45,21 +90,16 @@ def _train_now(roni_df, oni_df) -> dict:
 
 
 def _render_training_panel(roni_df, oni_df) -> None:
+    st.markdown('<div id="modelos-treinados"></div>', unsafe_allow_html=True)
     st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">ML OUTLOOK</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">MODELOS TREINADOS</div>', unsafe_allow_html=True)
     st.markdown(
-        '<div class="section-subtitle">Experimental one-step statistical outlook for the next RONI observation.</div>',
+        '<div class="section-subtitle">Laboratório operacional dos modelos validados e do outlook produzido pelo champion.</div>',
         unsafe_allow_html=True,
     )
 
     model_exists = MODEL_PATH.exists() and METADATA_PATH.exists()
-    benchmark_payload = None
-    if BENCHMARK_PATH.exists():
-        try:
-            benchmark_payload = json.loads(BENCHMARK_PATH.read_text(encoding="utf-8"))
-        except (OSError, ValueError, TypeError):
-            benchmark_payload = None
-
+    benchmark_payload = _load_benchmark()
     metadata = load_metadata(METADATA_PATH) if model_exists else None
     winner = (
         metadata.get("model")
@@ -103,27 +143,16 @@ def _render_training_panel(roni_df, oni_df) -> None:
                     st.success(
                         "Validated model updated successfully. The previous champion remains protected unless the new benchmark wins."
                     )
-                    # The status/outlook above was rendered before training. Restart once
-                    # so the same run immediately reloads the freshly written production
-                    # artifacts and shows the actual ML outlook instead of stale state.
                     st.rerun()
                 else:
-                    status.update(
-                        label="Champion unchanged",
-                        state="complete",
-                        expanded=False,
-                    )
-                    st.info(
-                        "No learned model beat Persistence. The existing champion was left unchanged."
-                    )
+                    status.update(label="Champion unchanged", state="complete", expanded=False)
+                    st.info("No learned model beat Persistence. The existing champion was left unchanged.")
             except Exception as exc:
                 status.update(label="Model update failed", state="error", expanded=True)
                 st.error(f"Não foi possível concluir a atualização: {exc}")
 
     if benchmark_payload and not train_clicked:
-        results = benchmark_payload.get("results", [])
-        if results:
-            _render_benchmark(results, winner)
+        _render_benchmark(benchmark_payload.get("results", []), winner)
 
 
 def _render_outlook(roni_df, oni_df) -> None:
@@ -193,7 +222,7 @@ def _render_outlook(roni_df, oni_df) -> None:
 
 
 def render_ml_outlook(roni_df, oni_df) -> None:
-    """Render training controls and the outlook when a validated model exists."""
+    """Render the model laboratory when a validated dataset is available."""
     if roni_df is None or oni_df is None or roni_df.empty or oni_df.empty:
         return
     _render_training_panel(roni_df, oni_df)
