@@ -1,8 +1,8 @@
 """Auditable information-time policy for ENSO source datasets.
 
 This module intentionally does not invent row-level publication timestamps.
-A dataset may be used for forecasting only when its availability is either
-explicitly supplied by the source or mapped by an approved, documented rule.
+A dataset may be used for forecasting only when its availability is explicitly
+supplied by the source or mapped by an approved, documented rule.
 """
 
 from __future__ import annotations
@@ -28,26 +28,25 @@ class AvailabilityPolicy:
         return self.status == "validated" and bool(self.method)
 
 
-# Source-level documentation is useful even before row-level timestamps exist.
-# ``unknown`` deliberately blocks accidental leakage in historical training.
+# Source-level documentation is useful before row-level timestamps exist.
+# ``approximate`` and ``unknown`` deliberately block temporal training.
 AVAILABILITY_POLICIES: dict[str, AvailabilityPolicy] = {
     "roni": AvailabilityPolicy(
         dataset="RONI",
         source="NOAA CPC",
-        status="validated",
+        status="approximate",
         method="official_page_schedule",
         evidence_url="https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso/roni/",
         notes=(
             "NOAA CPC states that RONI is updated by the 5th of each month. "
-            "This is a publication schedule, not a reconstructed timestamp "
-            "for every historical observation; row-level backtests must not "
-            "assume a finer timestamp without evidence."
+            "The schedule is authoritative, but this registry does not claim "
+            "an exact historical release timestamp for each row."
         ),
     ),
     "oni": AvailabilityPolicy(
         dataset="ONI",
         source="NOAA CPC",
-        status="validated",
+        status="approximate",
         method="official_page_schedule",
         evidence_url="https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt",
         notes=(
@@ -63,8 +62,7 @@ AVAILABILITY_POLICIES: dict[str, AvailabilityPolicy] = {
         evidence_url="https://www.cpc.ncep.noaa.gov/data/indices/wksst9120.for",
         notes=(
             "Observation dates are available, but a row-level publication/"
-            "availability timestamp has not yet been established. Keep "
-            "available_at unset for historical leakage-sensitive training."
+            "availability timestamp has not yet been established."
         ),
     ),
     "monthly_nino": AvailabilityPolicy(
@@ -106,7 +104,7 @@ def require_temporal_approval(dataset: str) -> AvailabilityPolicy:
     policy = get_availability_policy(dataset)
     if not policy.is_usable_for_temporal_training():
         raise ValueError(
-            f"{dataset}: availability policy is not validated; "
+            f"{dataset}: availability policy is {policy.status!r}; "
             "row-level available_at must be established before temporal training."
         )
     return policy
