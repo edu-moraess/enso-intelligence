@@ -15,7 +15,7 @@ from .components import (
 
 
 def render_regime_timeline(roni_df) -> None:
-    """Render the visible trained-model workspace immediately before the regime timeline."""
+    """Render the visible ModelLBs workspace immediately before the regime timeline."""
     try:
         from src.ui.ml_outlook import render_ml_outlook
         from src.noaa import fetch_oni
@@ -29,7 +29,7 @@ def render_regime_timeline(roni_df) -> None:
             .model-nav-tab.active { background:#fff; color:#0f172a !important; box-shadow:0 1px 3px rgba(15,23,42,.08); }
             </style>
             <div class="model-nav" aria-label="Navegação do observatório">
-                <a class="model-nav-tab active" href="#modelos-treinados">Modelos treinados</a>
+                <a class="model-nav-tab active" href="#modelos-treinados">ModelLBs</a>
             </div>
             """,
             unsafe_allow_html=True,
