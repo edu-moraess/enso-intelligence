@@ -62,12 +62,7 @@ def _metrics(actual: np.ndarray, predicted: np.ndarray) -> tuple[float, float]:
 
 
 def benchmark_models(table: pd.DataFrame, *, min_train: int = MIN_TRAIN) -> tuple[list[BenchmarkResult], object | None]:
-    """Evaluate persistence, Ridge and gradient boosting using expanding windows.
-
-    The returned champion is fit on the complete table only when a learned
-    model beats persistence on RMSE. Otherwise ``None`` is returned and the
-    production layer should remain without an ML forecast.
-    """
+    """Evaluate learned models against persistence with expanding windows."""
     if len(table) <= min_train:
         raise ValueError(f"Need more than {min_train} supervised rows; received {len(table)}")
 
@@ -75,13 +70,12 @@ def benchmark_models(table: pd.DataFrame, *, min_train: int = MIN_TRAIN) -> tupl
     persistence = table["roni_lag_1"].to_numpy(dtype=float)[min_train:]
     persistence_rmse, persistence_mae = _metrics(actual, persistence)
     results = [
-        BenchmarkResult("Persistence", persistence_rmse, persistence_mae, len(actual), True)
+        BenchmarkResult("Persistence", persistence_rmse, persistence_mae, len(actual), False)
     ]
 
     best_name: str | None = None
     best_rmse = float("inf")
-    models = _models()
-    for name, model in models.items():
+    for name, model in _models().items():
         actual_i, predicted_i = _walk_forward_predictions(table, model, min_train=min_train)
         rmse, mae = _metrics(actual_i, predicted_i)
         beats = rmse < persistence_rmse
