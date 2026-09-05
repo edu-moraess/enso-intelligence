@@ -15,7 +15,7 @@ from .components import (
 
 
 def render_regime_timeline(roni_df) -> None:
-    """Render the ML controls/outlook immediately before the regime timeline."""
+    """Render ML controls/outlook immediately before the regime timeline."""
     try:
         from src.ui.ml_outlook import render_ml_outlook
         from src.noaa import fetch_oni
@@ -27,6 +27,10 @@ def render_regime_timeline(roni_df) -> None:
         pass
     _render_regime_timeline(roni_df)
 
+
+# app.py imports render_regime_timeline directly from src.ui.components.
+# Replace only that callable while preserving every other component unchanged.
+_components.render_regime_timeline = render_regime_timeline
 
 __all__ = [
     "apply_light_theme",
