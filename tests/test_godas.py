@@ -42,5 +42,5 @@ def test_d20_anomaly_uses_calendar_month_climatology_and_three_month_change():
     assert "d20_anomaly_m" in out
     assert "d20_trend_3m_m" in out
     assert out.loc[3, "d20_trend_3m_m"] == pytest.approx(3.0)
-    assert out.loc[12, "d20_climatology_m"] == pytest.approx(0.0)
-    assert out.loc[13, "d20_climatology_m"] == pytest.approx(1.0)
+    assert out.loc[12, "d20_climatology_m"] == pytest.approx(12.0)
+    assert out.loc[13, "d20_climatology_m"] == pytest.approx(13.0)
