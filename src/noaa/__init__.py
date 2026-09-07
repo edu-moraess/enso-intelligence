@@ -31,7 +31,7 @@ def _foundation_metadata(snapshot, df) -> SeriesMetadata:
         dataset=snapshot.dataset,
         start=pd.to_datetime(df["date"]).min().to_pydatetime() if "date" in df.columns else None,
         end=pd.to_datetime(df["date"]).max().to_pydatetime() if "date" in df.columns else None,
-        last_update=None,
+        last_update=pd.to_datetime(snapshot.retrieved_at).to_pydatetime(),
         n_records=snapshot.rows,
         status=DataStatus.UPDATED,
         message=f"Foundation snapshot {snapshot.snapshot_id}",
