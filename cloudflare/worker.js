@@ -1,4 +1,4 @@
-const FOUNDATION_VERSION = "1.3";
+const FOUNDATION_VERSION = "2.0";
 
 const DATASETS = {
   roni: {
@@ -9,9 +9,30 @@ const DATASETS = {
     url: "https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt",
     required: ["date", "season", "year", "oni"],
   },
-  soi: {
-    url: "https://www.cpc.ncep.noaa.gov/data/indices/soi",
-    required: ["date", "soi"],
+  olr: {
+    url: "https://www.cpc.ncep.noaa.gov/data/indices/olr",
+    required: ["date", "olr"],
+    source: "NOAA CPC",
+  },
+  pdo: {
+    url: "https://psl.noaa.gov/pdo/data/pdo.timeseries.sstens.data",
+    required: ["date", "pdo"],
+    source: "NOAA PSL",
+  },
+  iod: {
+    url: "https://psl.noaa.gov/data/timeseries/month/data/dmi.had.long.data",
+    required: ["date", "dmi"],
+    source: "NOAA PSL",
+  },
+  sam: {
+    url: "https://psl.noaa.gov/data/20thC_Rean/timeseries/monthly/SAM/sam.20crv3.long.data",
+    required: ["date", "sam"],
+    source: "NOAA PSL",
+  },
+  mjo: {
+    url: "https://www.bom.gov.au/climate/mjo/graphics/rmm.74toRealtime.txt",
+    required: ["date", "rmm1", "rmm2", "phase", "amplitude"],
+    source: "Bureau of Meteorology",
   },
   weekly_nino: {
     url: "https://www.cpc.ncep.noaa.gov/data/indices/wksst9120.for",
@@ -138,6 +159,45 @@ function parseSoi(text) {
   return rows.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+function parseMonthlyTable(text, field, anomalySection = false) {
+  const lines = text.split(/\\r?\\n/);
+  const start = anomalySection ? lines.findIndex((line) => line.toUpperCase().includes("ANOMALY")) + 2 : 0;
+  const rows = [];
+  for (const line of lines.slice(Math.max(start, 0))) {
+    const match = line.match(/^\\s*(\\d{4})(.*)$/);
+    if (!match) continue;
+    const year = Number(match[1]);
+    const values = [...match[2].matchAll(FLOAT_RE)].map((m) => Number(m[0]));
+    if (values.length < 12) continue;
+    for (let month = 0; month < 12; month++) {
+      const value = values[month];
+      if (!Number.isFinite(value) || value <= -900) continue;
+      rows.push({ date: String(year) + "-" + String(month + 1).padStart(2, "0") + "-15", [field]: value });
+    }
+  }
+  if (!rows.length) throw new Error(field.toUpperCase() + " parser returned no observations");
+  return rows.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function parsePsl(text, field) {
+  return parseMonthlyTable(text, field, false);
+}
+
+function parseMjo(text) {
+  const rows = [];
+  for (const line of text.split(/\\r?\\n/)) {
+    const parts = line.trim().split(/\\s+/);
+    if (parts.length < 7 || !/^\\d{4}$/.test(parts[0])) continue;
+    const year = Number(parts[0]), month = Number(parts[1]), day = Number(parts[2]);
+    const rmm1 = Number(parts[3]), rmm2 = Number(parts[4]), phase = Number(parts[5]), amplitude = Number(parts[6]);
+    if (![year, month, day, rmm1, rmm2, phase, amplitude].every(Number.isFinite)) continue;
+    if (Math.abs(rmm1) >= 900 || Math.abs(rmm2) >= 900 || amplitude >= 900) continue;
+    rows.push({ date: String(year) + "-" + String(month).padStart(2, "0") + "-" + String(day).padStart(2, "0"), rmm1, rmm2, phase, amplitude });
+  }
+  if (!rows.length) throw new Error("MJO parser returned no observations");
+  return rows.sort((a, b) => a.date.localeCompare(b.date));
+}
+
 function parseWeeklyNino(text) {
   const rows = [];
   for (const line of text.split(/\r?\n/)) {
@@ -200,7 +260,7 @@ async function publishDataset(env, name, rows, columns, sourceUrl) {
     throw new Error(`GitHub manifest read failed: ${manifestGet.status} ${await manifestGet.text()}`);
   }
 
-  const manifestEntry = JSON.stringify({ dataset: name, snapshot_id: snapshotId, sha256: digest, rows: rows.length, retrieved_at: new Date().toISOString(), foundation_version: FOUNDATION_VERSION, source: "NOAA CPC", source_url: sourceUrl, start: rows[0].date, end: rows[rows.length - 1].date }) + "\n";
+  const manifestEntry = JSON.stringify({ dataset: name, snapshot_id: snapshotId, sha256: digest, rows: rows.length, retrieved_at: new Date().toISOString(), foundation_version: FOUNDATION_VERSION, source: DATASETS[name].source || "NOAA CPC", source_url: sourceUrl, start: rows[0].date, end: rows[rows.length - 1].date }) + "\n";
   const manifestResponse = await githubRequest(env, manifestPath, {
     fetchOptions: { method: "PUT", body: JSON.stringify({ message: `data: update ${name} manifest`, content: btoa(existingManifest + manifestEntry), branch: env.GIT_BRANCH, ...(manifestSha ? { sha: manifestSha } : {}) }) },
   });
