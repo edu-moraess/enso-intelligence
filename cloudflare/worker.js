@@ -122,11 +122,11 @@ function parseWeeklyDate(dateRaw) {
 }
 
 function parseMonthlyTable(text, field, anomalySection = false) {
-  const lines = text.split(/\\r?\\n/);
+  const lines = text.split(/\r?\n/);
   const start = anomalySection ? lines.findIndex((line) => line.toUpperCase().includes("ANOMALY")) + 2 : 0;
   const rows = [];
   for (const line of lines.slice(Math.max(start, 0))) {
-    const match = line.match(/^\\s*(\\d{4})(.*)$/);
+    const match = line.match(/^\s*(\d{4})(.*)$/);
     if (!match) continue;
     const year = Number(match[1]);
     const values = [...match[2].matchAll(FLOAT_RE)].map((m) => Number(m[0]));
@@ -230,10 +230,10 @@ async function publishDataset(env, name, rows, columns, sourceUrl) {
   return { snapshot_id: snapshotId, sha256: digest, rows: rows.length, start: rows[0].date, end: rows[rows.length - 1].date };
 }
 
-async function fetchNoaa(url) {
+async function fetchSource(url) {
   const separator = url.includes("?") ? "&" : "?";
   const response = await fetch(`${url}${separator}_=${Date.now()}`, { headers: { "User-Agent": "enso-data-core" }, cf: { cacheTtl: 0, cacheEverything: false } });
-  if (!response.ok) throw new Error(`NOAA request failed: ${response.status} ${response.statusText}`);
+  if (!response.ok) throw new Error(`Source request failed: ${response.status} ${response.statusText}`);
   const text = await response.text();
   if (!text.trim()) throw new Error("NOAA returned an empty response");
   return text;
@@ -243,7 +243,7 @@ async function run(env) {
   const results = {}, errors = {};
   for (const [name, config] of Object.entries(DATASETS)) {
     try {
-      const text = await fetchNoaa(config.url);
+      const text = await fetchSource(config.url);
       let rows;
       if (name === "roni") rows = parseRoni(text);
       else if (name === "oni") rows = parseOni(text);
