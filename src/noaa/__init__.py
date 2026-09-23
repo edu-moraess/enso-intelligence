@@ -13,10 +13,12 @@ from .cpc import load_nino_indices as _parse_or_fetch_nino_indices
 from .cpc import load_oni as _parse_or_fetch_oni
 from .ersstv6 import get_ersst_status
 from .roni import fetch_roni as _fetch_roni
+from .soi import fetch_soi as _fetch_soi
 from .roni import load_roni as _parse_or_fetch_roni
 
 RONI_REQUIRED = ("date", "season", "year", "roni")
 ONI_REQUIRED = ("date", "season", "year", "oni")
+SOI_REQUIRED = ("date", "soi")
 WEEKLY_NINO_REQUIRED = (
     "date", "nino12_sst", "nino12",
     "nino3_sst", "nino3",
@@ -76,6 +78,10 @@ def fetch_oni():
     return _read_foundation("oni", ONI_REQUIRED, "Oceanic Niño Index (ONI)")
 
 
+def fetch_soi():
+    return _read_foundation("soi", SOI_REQUIRED, "Southern Oscillation Index (SOI)")
+
+
 def fetch_nino_indices():
     df, meta = _read_foundation(
         "weekly_nino",
@@ -86,6 +92,10 @@ def fetch_nino_indices():
 
 
 # Explicit ingestion entry points retained for local Foundation tooling.
+def ingest_soi():
+    return ingest_and_archive(_fetch_soi, dataset="soi", required_columns=SOI_REQUIRED)
+
+
 def ingest_roni():
     return ingest_and_archive(_fetch_roni, dataset="roni", required_columns=RONI_REQUIRED)
 
@@ -121,6 +131,7 @@ __all__ = [
     "fetch_roni", "load_roni",
     "fetch_oni", "load_oni",
     "fetch_nino_indices", "load_nino_indices",
+    "fetch_soi", "ingest_soi",
     "ingest_roni", "ingest_oni", "ingest_nino_indices",
     "get_ersst_status",
 ]
