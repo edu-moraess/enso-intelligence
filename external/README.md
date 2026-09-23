@@ -8,12 +8,16 @@ The ENSO Data Foundation is scheduled outside GitHub Actions using a Cloudflare 
 NOAA CPC → Cloudflare Worker → validation/versioning → GitHub Contents API → data/foundation/
 ```
 
-The Worker does not clone or host the repository. It fetches four official NOAA CPC products directly and publishes only validated, content-addressed snapshots:
+The Worker does not clone or host the repository. It fetches official climate products directly and publishes only validated, content-addressed snapshots:
 
 - RONI
 - ONI
 - Weekly Niño regional SST anomalies
-- Southern Oscillation Index (SOI)
+- MJO / RMM (Bureau of Meteorology)
+- Central tropical Pacific OLR (NOAA CPC)
+- PDO (NOAA PSL)
+- IOD / DMI (NOAA PSL)
+- SAM / AAO (NOAA PSL)
 
 ## Secret
 

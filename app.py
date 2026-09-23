@@ -14,7 +14,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from src.analysis.enso import classify_enso_state, classify_intensity, compute_recent_trend
-from src.noaa import fetch_nino_indices, fetch_oni, fetch_roni, fetch_soi
+from src.noaa import fetch_nino_indices, fetch_oni, fetch_roni, fetch_teleconnections
 from src.ui.components import (
     apply_light_theme,
     data_unavailable_message,
@@ -90,9 +90,9 @@ def get_oni():
     return fetch_oni()
 
 
-@st.cache_data(ttl=300, show_spinner="Carregando SOI da Foundation…")
-def get_soi():
-    return fetch_soi()
+@st.cache_data(ttl=300, show_spinner="Carregando teleconexões da Foundation…")
+def get_teleconnections():
+    return fetch_teleconnections()
 
 
 @st.cache_data(ttl=300, show_spinner="Carregando índices Niño da Foundation…")
@@ -164,7 +164,7 @@ def find_historical_analogues(df: pd.DataFrame, window: int = 8, top_n: int = 3)
 roni_df, roni_meta = get_roni()
 oni_df, oni_meta = get_oni()
 nino_df, nino_meta = get_nino()
-soi_df, soi_meta = get_soi()
+teleconnections = get_teleconnections()
 
 st.markdown(
     '<div class="hero"><div class="eyebrow">E.N.S.O</div><div class="hero-title">Operational ENSO Intelligence</div><p>A compact observational intelligence system for tracking ENSO state, evolution, and historical context.</p></div>',
@@ -242,26 +242,42 @@ else:
         st.markdown('<div class="executive-note"><strong>Como ler:</strong> estes são análogos históricos de trajetória, não previsões. A semelhança é calculada sobre a evolução do RONI dentro de uma janela de oito períodos; ela não implica que os próximos períodos reproduzirão o passado.</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
-    section_header("ATMOSPHERIC SIGNAL", "Sinal atmosférico mensal observado pelo Southern Oscillation Index (SOI).")
-    if soi_df is None or soi_df.empty:
-        data_unavailable_message(soi_meta.source, soi_meta.message)
-    else:
-        sx = pd.to_datetime(soi_df["date"])
-        latest_soi = float(soi_df.iloc[-1]["soi"])
-        latest_soi_date = sx.iloc[-1]
-        sc1, sc2 = st.columns(2)
-        with sc1:
-            metric_card("SOI", f"{latest_soi:+.2f}", "Southern Oscillation Index")
-        with sc2:
-            metric_card("Última observação", latest_soi_date.strftime("%b %Y"), "NOAA CPC monthly")
-        sf = go.Figure()
-        sf.add_hline(y=0, line_color="#94a3b8", line_width=1)
-        sf.add_trace(go.Scatter(x=sx, y=soi_df["soi"], mode="lines", name="SOI", line=dict(color="#7c3aed", width=2.2), hovertemplate="%{x|%b %Y}<br>SOI: %{y:+.2f}<extra></extra>"))
-        sl = chart_layout(360)
-        sl.update(yaxis=dict(title="SOI", zeroline=False, gridcolor="#edf2f7"), xaxis=dict(range=[window_start(sx, 30), sx.iloc[-1]], showgrid=False, rangeslider=dict(visible=True, thickness=0.045), rangeselector=dict(buttons=[dict(count=10, label="10Y", step="year", stepmode="backward"), dict(count=30, label="30Y", step="year", stepmode="backward"), dict(step="all", label="All")])), showlegend=False)
-        sf.update_layout(**sl)
-        st.plotly_chart(sf, use_container_width=True, config={"displaylogo": False, "responsive": True})
-        st.markdown('<div class="executive-note"><strong>SOI</strong> é uma série atmosférica mensal baseada na diferença padronizada de pressão ao nível do mar entre Tahiti e Darwin. O observatório exibe somente observações efetivamente publicadas pela NOAA; valores ausentes não são preenchidos nem inferidos.</div>', unsafe_allow_html=True)
+    section_header("CLIMATE TELECONNECTIONS", "Sinais complementares de escala intrassazonal, tropical e decadal. Cada série permanece separada do RONI.")
+    cards = [
+        ("mjo", "MJO", "amplitude"),
+        ("olr", "OLR", "olr"),
+        ("pdo", "PDO", "pdo"),
+        ("iod", "IOD / DMI", "dmi"),
+        ("sam", "SAM / AAO", "sam"),
+    ]
+    for dataset, label, value_col in cards:
+        df, meta = teleconnections.get(dataset, (None, None))
+        if df is None or df.empty:
+            st.markdown(f"**{label}**")
+            data_unavailable_message(meta.source if meta else "Foundation", meta.message if meta else "Dataset unavailable.")
+            continue
+        x = pd.to_datetime(df["date"])
+        latest_row = df.iloc[-1]
+        value = float(latest_row[value_col])
+        if dataset == "mjo":
+            phase = int(latest_row["phase"])
+            metric_card(label, f"Phase {phase}", f"Amplitude {value:.2f} · {x.iloc[-1].strftime('%d %b %Y')}")
+        else:
+            metric_card(label, f"{value:+.2f}", f"Última observação · {x.iloc[-1].strftime('%b %Y')}")
+        fig = go.Figure()
+        if dataset == "mjo":
+            fig.add_trace(go.Scatter(x=df["rmm1"], y=df["rmm2"], mode="lines", name="MJO RMM", line=dict(width=2.2), hovertemplate="RMM1: %{x:.2f}<br>RMM2: %{y:.2f}<extra></extra>"))
+            fig.add_trace(go.Scatter(x=[float(latest_row["rmm1"])], y=[float(latest_row["rmm2"])], mode="markers", name="Latest", marker=dict(size=10), hovertemplate=f"Phase {phase}<br>Amplitude: {value:.2f}<extra></extra>"))
+            fig.add_shape(type="circle", x0=-1, y0=-1, x1=1, y1=1, line=dict(dash="dot"))
+            fig.update_layout(**chart_layout(320), xaxis=dict(title="RMM1", range=[-2.5, 2.5], zeroline=True, showgrid=False), yaxis=dict(title="RMM2", range=[-2.5, 2.5], zeroline=True, gridcolor="#edf2f7"), showlegend=False)
+        else:
+            fig.add_trace(go.Scatter(x=x, y=df[value_col], mode="lines", name=label, line=dict(width=2.2), hovertemplate=f"%{{x|%b %Y}}<br>{label}: %{{y:+.2f}}<extra></extra>"))
+            fig.add_hline(y=0, line_color="#94a3b8", line_width=1)
+            lay = chart_layout(300)
+            lay.update(xaxis=dict(range=[window_start(x, 30), x.iloc[-1]], showgrid=False, rangeslider=dict(visible=True, thickness=0.045)), yaxis=dict(title=label, zeroline=False, gridcolor="#edf2f7"), showlegend=False)
+            fig.update_layout(**lay)
+        st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False, "responsive": True})
+    st.markdown('<div class="executive-note"><strong>Leitura física:</strong> MJO adiciona escala intrassazonal; OLR observa convecção tropical no Pacífico central; PDO representa variabilidade decadal do Pacífico Norte; IOD/DMI representa o gradiente térmico do Índico tropical; SAM/AAO representa a variabilidade atmosférica extratropical do Hemisfério Sul. Esses sinais são contexto observacional e não são tratados como previsões.</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
     render_regime_timeline(roni_df)
