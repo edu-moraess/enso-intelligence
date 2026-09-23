@@ -39,6 +39,20 @@ E.N.S.O uses three official NOAA CPC products as its current Foundation datasets
 
 The application reads the latest validated canonical snapshots from the repository Data Foundation. It does not use synthetic, mocked, or silent fallback climate observations.
 
+### Teleconnection layer
+
+The observatory also ingests five complementary signals without mixing them into the RONI classification:
+
+| Signal | Role | Source |
+|---|---|---|
+| **MJO / RMM** | Intraseasonal phase and amplitude | Australian Bureau of Meteorology |
+| **OLR** | Central tropical Pacific convection | NOAA CPC |
+| **PDO** | North Pacific decadal variability | NOAA PSL |
+| **IOD / DMI** | Tropical Indian Ocean SST gradient | NOAA PSL |
+| **SAM / AAO** | Southern Hemisphere atmospheric variability | NOAA PSL |
+
+These series are contextual observations, not forecasts. Missing Foundation snapshots remain explicitly unavailable rather than being replaced with synthetic or stale values.
+
 ## Data Foundation
 
 ```text
@@ -169,9 +183,9 @@ python scripts/validate_streamlit.py
 
 ## Project status
 
-**Operational Foundation v1.2.**
+**Operational Foundation v2.0.**
 
-The core observatory is intentionally frozen around ENSO monitoring, historical context, and transparent provenance. The Data Foundation adds controlled ingestion, validation, content-addressed versioning, and durable snapshot refresh without expanding the user-facing product into an infrastructure dashboard.
+The core observatory remains centered on ENSO monitoring while adding a separate teleconnection layer for intraseasonal, convective, decadal and Southern Hemisphere context. The Data Foundation adds controlled ingestion, validation, content-addressed versioning, and durable snapshot refresh without expanding the user-facing product into an infrastructure dashboard.
 
 ## Attribution
 
