@@ -122,11 +122,11 @@ function parseWeeklyDate(dateRaw) {
 }
 
 function parseMonthlyTable(text, field, anomalySection = false) {
-  const lines = text.split(/\\r?\\n/);
+  const lines = text.split(/\r?\n/);
   const start = anomalySection ? lines.findIndex((line) => line.toUpperCase().includes("ANOMALY")) + 2 : 0;
   const rows = [];
   for (const line of lines.slice(Math.max(start, 0))) {
-    const match = line.match(/^\\s*(\\d{4})(.*)$/);
+    const match = line.match(/^\s*(\d{4})(.*)$/);
     if (!match) continue;
     const year = Number(match[1]);
     const values = [...match[2].matchAll(FLOAT_RE)].map((m) => Number(m[0]));
@@ -147,9 +147,9 @@ function parsePsl(text, field) {
 
 function parseMjo(text) {
   const rows = [];
-  for (const line of text.split(/\\r?\\n/)) {
-    const parts = line.trim().split(/\\s+/);
-    if (parts.length < 7 || !/^\\d{4}$/.test(parts[0])) continue;
+  for (const line of text.split(/\r?\n/)) {
+    const parts = line.trim().split(/\s+/);
+    if (parts.length < 7 || !/^\d{4}$/.test(parts[0])) continue;
     const year = Number(parts[0]), month = Number(parts[1]), day = Number(parts[2]);
     const rmm1 = Number(parts[3]), rmm2 = Number(parts[4]), phase = Number(parts[5]), amplitude = Number(parts[6]);
     if (![year, month, day, rmm1, rmm2, phase, amplitude].every(Number.isFinite)) continue;
@@ -230,10 +230,10 @@ async function publishDataset(env, name, rows, columns, sourceUrl) {
   return { snapshot_id: snapshotId, sha256: digest, rows: rows.length, start: rows[0].date, end: rows[rows.length - 1].date };
 }
 
-async function fetchNoaa(url) {
+async function fetchSource(url) {
   const separator = url.includes("?") ? "&" : "?";
   const response = await fetch(`${url}${separator}_=${Date.now()}`, { headers: { "User-Agent": "enso-data-core" }, cf: { cacheTtl: 0, cacheEverything: false } });
-  if (!response.ok) throw new Error(`NOAA request failed: ${response.status} ${response.statusText}`);
+  if (!response.ok) throw new Error(`Source request failed: ${response.status} ${response.statusText}`);
   const text = await response.text();
   if (!text.trim()) throw new Error("NOAA returned an empty response");
   return text;
@@ -243,12 +243,16 @@ async function run(env) {
   const results = {}, errors = {};
   for (const [name, config] of Object.entries(DATASETS)) {
     try {
-      const text = await fetchNoaa(config.url);
+      const text = await fetchSource(config.url);
       let rows;
       if (name === "roni") rows = parseRoni(text);
       else if (name === "oni") rows = parseOni(text);
-      else if (name === "soi") rows = parseSoi(text);
       else if (name === "weekly_nino") rows = parseWeeklyNino(text);
+      else if (name === "olr") rows = parseMonthlyTable(text, "olr", true);
+      else if (name === "pdo") rows = parsePsl(text, "pdo");
+      else if (name === "iod") rows = parsePsl(text, "dmi");
+      else if (name === "sam") rows = parsePsl(text, "sam");
+      else if (name === "mjo") rows = parseMjo(text);
       else throw new Error(`Unsupported dataset: ${name}`);
       results[name] = await publishDataset(env, name, rows, config.required, config.url);
     } catch (error) {
