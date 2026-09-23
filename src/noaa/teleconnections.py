@@ -21,7 +21,7 @@ from src.data.models import DataStatus, SeriesMetadata
 OLR_URL = "https://www.cpc.ncep.noaa.gov/data/indices/olr"
 PDO_URL = "https://psl.noaa.gov/pdo/data/pdo.timeseries.sstens.data"
 IOD_URL = "https://psl.noaa.gov/data/timeseries/month/data/dmi.had.long.data"
-SAM_URL = "https://psl.noaa.gov/data/timeseries/month/data/sam.20crv3.mon.data"
+SAM_URL = "https://psl.noaa.gov/data/20thC_Rean/timeseries/monthly/SAM/sam.20crv3.long.data"
 MJO_URL = "https://www.bom.gov.au/climate/mjo/graphics/rmm.74toRealtime.txt"
 
 REQUIRED = {
