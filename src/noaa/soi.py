@@ -97,7 +97,7 @@ def _parse_soi_text(text: str) -> pd.DataFrame:
             continue
 
         year = int(year_token)
-        values = pd.Series(" ".join(parts[1:])).str.findall(r"[-+]?\\d+(?:\\.\\d+)?").iloc[0]
+        values = pd.Series(" ".join(parts[1:])).str.findall(r"[-+]?\d+(?:\.\d+)?").iloc[0]
         if len(values) < 12:
             continue
 
