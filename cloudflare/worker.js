@@ -121,44 +121,6 @@ function parseWeeklyDate(dateRaw) {
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-function parseSoi(text) {
-  const lines = text.split(/\r?\n/);
-  const standardIndex = lines.findIndex((line) => line.toUpperCase().includes("STANDARDIZED"));
-  if (standardIndex < 0) throw new Error("NOAA SOI standardized-data section not found");
-
-  const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
-  const headerIndex = lines.findIndex((line, index) => {
-    if (index <= standardIndex) return false;
-    const parts = line.trim().toUpperCase().split(/\s+/);
-    return parts.length >= 13 && parts.slice(0, 13).join(" ") === ["YEAR", ...months].join(" ");
-  });
-  if (headerIndex < 0) throw new Error("NOAA SOI standardized-data header not found");
-
-  const rows = [];
-  const valueRe = /[-+]?\d+(?:\.\d+)?/g;
-  for (const line of lines.slice(headerIndex + 1)) {
-    const trimmed = line.trim();
-    const yearMatch = trimmed.match(/^(\d{4})/);
-    if (!yearMatch) continue;
-    const year = Number(yearMatch[1]);
-    const remainder = trimmed.slice(yearMatch[0].length);
-    const values = remainder.match(valueRe) || [];
-    if (values.length < 12) continue;
-
-    for (let month = 0; month < 12; month += 1) {
-      const value = Number(values[month]);
-      if (!Number.isFinite(value) || value === -999.9) continue;
-      rows.push({
-        date: String(year) + "-" + String(month + 1).padStart(2, "0") + "-15",
-        soi: value,
-      });
-    }
-  }
-
-  if (!rows.length) throw new Error("SOI parser returned no observations");
-  return rows.sort((a, b) => a.date.localeCompare(b.date));
-}
-
 function parseMonthlyTable(text, field, anomalySection = false) {
   const lines = text.split(/\\r?\\n/);
   const start = anomalySection ? lines.findIndex((line) => line.toUpperCase().includes("ANOMALY")) + 2 : 0;
