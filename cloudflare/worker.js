@@ -9,6 +9,10 @@ const DATASETS = {
     url: "https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt",
     required: ["date", "season", "year", "oni"],
   },
+  soi: {
+    url: "https://www.cpc.ncep.noaa.gov/data/indices/soi",
+    required: ["date", "soi"],
+  },
   weekly_nino: {
     url: "https://www.cpc.ncep.noaa.gov/data/indices/wksst9120.for",
     required: [
@@ -94,6 +98,44 @@ function parseWeeklyDate(dateRaw) {
   const month = months[monthRaw.toUpperCase()], day = Number(dayRaw), year = Number(yearRaw);
   if (!month || !Number.isInteger(day) || !Number.isInteger(year)) return null;
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function parseSoi(text) {
+  const lines = text.split(/\r?\n/);
+  const standardIndex = lines.findIndex((line) => line.toUpperCase().includes("STANDARDIZED"));
+  if (standardIndex < 0) throw new Error("NOAA SOI standardized-data section not found");
+
+  const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+  const headerIndex = lines.findIndex((line, index) => {
+    if (index <= standardIndex) return false;
+    const parts = line.trim().toUpperCase().split(/\s+/);
+    return parts.length >= 13 && parts.slice(0, 13).join(" ") === ["YEAR", ...months].join(" ");
+  });
+  if (headerIndex < 0) throw new Error("NOAA SOI standardized-data header not found");
+
+  const rows = [];
+  const valueRe = /[-+]?\d+(?:\.\d+)?/g;
+  for (const line of lines.slice(headerIndex + 1)) {
+    const trimmed = line.trim();
+    const yearMatch = trimmed.match(/^(\d{4})/);
+    if (!yearMatch) continue;
+    const year = Number(yearMatch[1]);
+    const remainder = trimmed.slice(yearMatch[0].length);
+    const values = remainder.match(valueRe) || [];
+    if (values.length < 12) continue;
+
+    for (let month = 0; month < 12; month += 1) {
+      const value = Number(values[month]);
+      if (!Number.isFinite(value) || value === -999.9) continue;
+      rows.push({
+        date: String(year) + "-" + String(month + 1).padStart(2, "0") + "-15",
+        soi: value,
+      });
+    }
+  }
+
+  if (!rows.length) throw new Error("SOI parser returned no observations");
+  return rows.sort((a, b) => a.date.localeCompare(b.date));
 }
 
 function parseWeeklyNino(text) {
@@ -183,6 +225,7 @@ async function run(env) {
       let rows;
       if (name === "roni") rows = parseRoni(text);
       else if (name === "oni") rows = parseOni(text);
+      else if (name === "soi") rows = parseSoi(text);
       else if (name === "weekly_nino") rows = parseWeeklyNino(text);
       else throw new Error(`Unsupported dataset: ${name}`);
       results[name] = await publishDataset(env, name, rows, config.required, config.url);
