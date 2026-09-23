@@ -247,8 +247,12 @@ async function run(env) {
       let rows;
       if (name === "roni") rows = parseRoni(text);
       else if (name === "oni") rows = parseOni(text);
-      else if (name === "soi") rows = parseSoi(text);
       else if (name === "weekly_nino") rows = parseWeeklyNino(text);
+      else if (name === "olr") rows = parseMonthlyTable(text, "olr", true);
+      else if (name === "pdo") rows = parsePsl(text, "pdo");
+      else if (name === "iod") rows = parsePsl(text, "dmi");
+      else if (name === "sam") rows = parsePsl(text, "sam");
+      else if (name === "mjo") rows = parseMjo(text);
       else throw new Error(`Unsupported dataset: ${name}`);
       results[name] = await publishDataset(env, name, rows, config.required, config.url);
     } catch (error) {
