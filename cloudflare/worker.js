@@ -147,9 +147,9 @@ function parsePsl(text, field) {
 
 function parseMjo(text) {
   const rows = [];
-  for (const line of text.split(/\\r?\\n/)) {
-    const parts = line.trim().split(/\\s+/);
-    if (parts.length < 7 || !/^\\d{4}$/.test(parts[0])) continue;
+  for (const line of text.split(/\r?\n/)) {
+    const parts = line.trim().split(/\s+/);
+    if (parts.length < 7 || !/^\d{4}$/.test(parts[0])) continue;
     const year = Number(parts[0]), month = Number(parts[1]), day = Number(parts[2]);
     const rmm1 = Number(parts[3]), rmm2 = Number(parts[4]), phase = Number(parts[5]), amplitude = Number(parts[6]);
     if (![year, month, day, rmm1, rmm2, phase, amplitude].every(Number.isFinite)) continue;
