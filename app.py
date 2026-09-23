@@ -14,7 +14,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from src.analysis.enso import classify_enso_state, classify_intensity, compute_recent_trend
-from src.noaa import fetch_nino_indices, fetch_oni, fetch_roni
+from src.noaa import fetch_nino_indices, fetch_oni, fetch_roni, fetch_soi
 from src.ui.components import (
     apply_light_theme,
     data_unavailable_message,
@@ -90,6 +90,11 @@ def get_oni():
     return fetch_oni()
 
 
+@st.cache_data(ttl=300, show_spinner="Carregando SOI da Foundation…")
+def get_soi():
+    return fetch_soi()
+
+
 @st.cache_data(ttl=300, show_spinner="Carregando índices Niño da Foundation…")
 def get_nino():
     """Load canonical weekly Niño data and expose UI-compatible SSTA aliases."""
@@ -159,6 +164,7 @@ def find_historical_analogues(df: pd.DataFrame, window: int = 8, top_n: int = 3)
 roni_df, roni_meta = get_roni()
 oni_df, oni_meta = get_oni()
 nino_df, nino_meta = get_nino()
+soi_df, soi_meta = get_soi()
 
 st.markdown(
     '<div class="hero"><div class="eyebrow">E.N.S.O</div><div class="hero-title">Operational ENSO Intelligence</div><p>A compact observational intelligence system for tracking ENSO state, evolution, and historical context.</p></div>',
@@ -236,6 +242,28 @@ else:
         st.markdown('<div class="executive-note"><strong>Como ler:</strong> estes são análogos históricos de trajetória, não previsões. A semelhança é calculada sobre a evolução do RONI dentro de uma janela de oito períodos; ela não implica que os próximos períodos reproduzirão o passado.</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
+    section_header("ATMOSPHERIC SIGNAL", "Sinal atmosférico mensal observado pelo Southern Oscillation Index (SOI).")
+    if soi_df is None or soi_df.empty:
+        data_unavailable_message(soi_meta.source, soi_meta.message)
+    else:
+        sx = pd.to_datetime(soi_df["date"])
+        latest_soi = float(soi_df.iloc[-1]["soi"])
+        latest_soi_date = sx.iloc[-1]
+        sc1, sc2 = st.columns(2)
+        with sc1:
+            metric_card("SOI", f"{latest_soi:+.2f}", "Southern Oscillation Index")
+        with sc2:
+            metric_card("Última observação", latest_soi_date.strftime("%b %Y"), "NOAA CPC monthly")
+        sf = go.Figure()
+        sf.add_hline(y=0, line_color="#94a3b8", line_width=1)
+        sf.add_trace(go.Scatter(x=sx, y=soi_df["soi"], mode="lines", name="SOI", line=dict(color="#7c3aed", width=2.2), hovertemplate="%{x|%b %Y}<br>SOI: %{y:+.2f}<extra></extra>"))
+        sl = chart_layout(360)
+        sl.update(yaxis=dict(title="SOI", zeroline=False, gridcolor="#edf2f7"), xaxis=dict(range=[window_start(sx, 30), sx.iloc[-1]], showgrid=False, rangeslider=dict(visible=True, thickness=0.045), rangeselector=dict(buttons=[dict(count=10, label="10Y", step="year", stepmode="backward"), dict(count=30, label="30Y", step="year", stepmode="backward"), dict(step="all", label="All")])), showlegend=False)
+        sf.update_layout(**sl)
+        st.plotly_chart(sf, use_container_width=True, config={"displaylogo": False, "responsive": True})
+        st.markdown('<div class="executive-note"><strong>SOI</strong> é uma série atmosférica mensal baseada na diferença padronizada de pressão ao nível do mar entre Tahiti e Darwin. O observatório exibe somente observações efetivamente publicadas pela NOAA; valores ausentes não são preenchidos nem inferidos.</div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
     render_regime_timeline(roni_df)
 
     st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
@@ -296,11 +324,11 @@ else:
 
     st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
     section_header("METHODOLOGY", "How the observatory turns observed climate signals into a concise operational assessment.")
-    st.markdown('<div class="flow"><div class="flow-step">SIGNAL · RONI</div><div class="flow-arrow">→</div><div class="flow-step">REGIME · ±0.5°C</div><div class="flow-arrow">→</div><div class="flow-step">INTENSITY</div><div class="flow-arrow">→</div><div class="flow-step">EVOLUTION</div><div class="flow-arrow">→</div><div class="flow-step">HISTORICAL CONTEXT</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="flow"><div class="flow-step">OCEANIC SIGNAL · RONI</div><div class="flow-arrow">→</div><div class="flow-step">ATMOSPHERIC SIGNAL · SOI</div><div class="flow-arrow">→</div><div class="flow-step">REGIME · ±0.5°C</div><div class="flow-arrow">→</div><div class="flow-step">INTENSITY</div><div class="flow-arrow">→</div><div class="flow-step">EVOLUTION</div><div class="flow-arrow">→</div><div class="flow-step">HISTORICAL CONTEXT</div></div>', unsafe_allow_html=True)
     st.markdown('<div class="executive-note"><strong>SIGNAL</strong> · RONI is the operational ENSO signal. ONI and regional Niño indices provide complementary context.<br><strong>REGIME</strong> · El Niño ≥ +0.5°C · Neutral −0.5°C to +0.5°C · La Niña ≤ −0.5°C<br><strong>INTENSITY</strong> · Weak · Moderate · Strong · Very Strong<br><strong>EVOLUTION</strong> · Recent RONI changes indicate strengthening, weakening, or stability.<br><strong>HISTORICAL CONTEXT</strong> · 8-observation trajectory comparison using RMSE-based similarity.<br><strong>GUARDRAIL</strong> · Historical analogues are descriptive, not predictive.</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
     section_header("DATA & PROVENANCE", "Datasets and attribution used by the observatory.")
-    st.markdown('<div class="executive-note">RONI · ONI · Weekly Niño indices · NOAA CPC / NCEI / PSL<br><span style="color:#64748b;font-size:.78rem;">Observation periods are shown separately from retrieval timestamps. Official values may be revised by NOAA.</span></div>', unsafe_allow_html=True)
+    st.markdown('<div class="executive-note">RONI · ONI · SOI · Weekly Niño indices · NOAA CPC / NCEI / PSL<br><span style="color:#64748b;font-size:.78rem;">Observation periods are shown separately from retrieval timestamps. Official values may be revised by NOAA.</span></div>', unsafe_allow_html=True)
 
 render_footer()
