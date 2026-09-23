@@ -50,7 +50,7 @@ def _parse_monthly_cpc_table(text: str, value_name: str, start_line: int = 0) ->
         if not line or not line[:4].isdigit():
             continue
         year = int(line[:4])
-        values = pd.to_numeric(pd.Series(line[4:].split()), errors="coerce").tolist()
+        values = [float(match.group(0)) for match in __import__("re").finditer(r"[-+]?\\d+(?:\\.\\d+)?", line[4:])]
         if len(values) < 12:
             continue
         for month in months:
