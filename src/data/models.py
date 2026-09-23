@@ -25,6 +25,7 @@ class NOAAConfig:
     ONI_URL: str = "https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt"
     WEEKLY_NINO_URL: str = "https://www.cpc.ncep.noaa.gov/data/indices/wksst9120.for"
     MONTHLY_NINO_URL: str = "https://www.cpc.ncep.noaa.gov/data/indices/sstoi.indices"
+    SOI_URL: str = "https://www.cpc.ncep.noaa.gov/data/indices/soi"
     RONI_OUTLOOK_URL: str = "https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso/roni/outlook/"
     RONI_PROBABILITIES_URL: str = "https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso/roni/probabilities/"
     RONI_PROBABILITIES_PHP: str = "https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso/roni/probabilities.php"
