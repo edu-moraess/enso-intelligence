@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 
 import pandas as pd
 import pytest
@@ -115,7 +116,7 @@ def test_load_latest_snapshot_fails_if_manifest_snapshot_is_missing(tmp_path: Pa
     dataset_dir.mkdir(parents=True)
     (dataset_dir / "manifest.jsonl").write_text(
         '{"dataset":"roni","source":"NOAA CPC","source_url":"https://example.invalid/roni",'
-        '"retrieved_at":"2026-09-04T00:00:00+00:00","snapshot_id":"missing",'
+        '"retrieved_at":"2026-09-04T00:00:00+00:00","snapshot_id":"0000000000000000",'
         '"rows":1,"start":null,"end":null,"validation":{}}\n',
         encoding="utf-8",
     )
@@ -176,3 +177,41 @@ def test_snapshot_rejects_unsupported_availability_claim(tmp_path: Path):
             root=tmp_path,
             available_at="2026-08-05T00:00:00Z",
         )
+
+
+
+def test_load_latest_snapshot_rejects_modified_snapshot_bytes(tmp_path: Path):
+    saved = persist_snapshot(
+        sample_df(),
+        dataset="roni",
+        source="NOAA CPC",
+        source_url="https://example.invalid/roni",
+        required_columns=REQUIRED,
+        root=tmp_path,
+    )
+    snapshot_path = tmp_path / "roni" / f"{saved.snapshot_id}.csv"
+    snapshot_path.write_text(
+        snapshot_path.read_text(encoding="utf-8") + "# tampered\\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="integrity check failed"):
+        load_latest_snapshot("roni", REQUIRED, root=tmp_path)
+
+
+def test_load_latest_snapshot_rejects_manifest_row_count_mismatch(tmp_path: Path):
+    saved = persist_snapshot(
+        sample_df(),
+        dataset="roni",
+        source="NOAA CPC",
+        source_url="https://example.invalid/roni",
+        required_columns=REQUIRED,
+        root=tmp_path,
+    )
+    manifest_path = tmp_path / "roni" / "manifest.jsonl"
+    entry = json.loads(manifest_path.read_text(encoding="utf-8"))
+    entry["rows"] = saved.rows + 1
+    manifest_path.write_text(json.dumps(entry) + "\\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="row-count mismatch"):
+        load_latest_snapshot("roni", REQUIRED, root=tmp_path)

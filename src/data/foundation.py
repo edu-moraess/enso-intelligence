@@ -226,17 +226,54 @@ def load_latest_snapshot(
     if not lines:
         raise FileNotFoundError(f"Foundation manifest is empty: {manifest_path}")
 
-    entry = json.loads(lines[-1])
-    snapshot_id = entry["snapshot_id"]
+    try:
+        entry = json.loads(lines[-1])
+    except (json.JSONDecodeError, TypeError) as exc:
+        raise ValueError("Foundation manifest contains invalid JSON") from exc
+
+    snapshot_id = entry.get("snapshot_id")
+    if not isinstance(snapshot_id, str) or len(snapshot_id) != 16 or any(
+        character not in "0123456789abcdef" for character in snapshot_id
+    ):
+        raise ValueError("Foundation manifest contains an invalid snapshot_id")
+    if entry.get("dataset") != dataset:
+        raise ValueError(
+            f"Foundation manifest dataset mismatch: expected {dataset!r}, "
+            f"received {entry.get('dataset')!r}"
+        )
+
     csv_path = dataset_dir / f"{snapshot_id}.csv"
     if not csv_path.exists():
         raise FileNotFoundError(f"Foundation snapshot not found: {csv_path}")
 
-    df = pd.read_csv(csv_path, parse_dates=["date"] if "date" in required_columns else None)
+    snapshot_bytes = csv_path.read_bytes()
+    digest = hashlib.sha256(snapshot_bytes).hexdigest()
+    if digest[:16] != snapshot_id:
+        raise ValueError(
+            f"Foundation snapshot integrity check failed for {csv_path.name}: "
+            "content hash does not match snapshot_id"
+        )
+    manifest_digest = entry.get("sha256")
+    if manifest_digest is not None and manifest_digest != digest:
+        raise ValueError(
+            f"Foundation manifest SHA-256 mismatch for {csv_path.name}"
+        )
+
+    from io import BytesIO
+
+    df = pd.read_csv(
+        BytesIO(snapshot_bytes),
+        parse_dates=["date"] if "date" in required_columns else None,
+    )
     canonical = canonicalize(df, required_columns)
     validation = validate_dataset(canonical, required_columns)
     if not validation.valid:
         raise ValueError(f"Foundation snapshot validation failed: {validation.message}")
+    if "rows" in entry and entry["rows"] != len(canonical):
+        raise ValueError(
+            f"Foundation manifest row-count mismatch: expected {entry['rows']}, "
+            f"received {len(canonical)}"
+        )
 
     metadata = SnapshotMetadata(
         dataset=entry["dataset"],
