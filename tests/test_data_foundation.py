@@ -116,7 +116,7 @@ def test_load_latest_snapshot_fails_if_manifest_snapshot_is_missing(tmp_path: Pa
     dataset_dir.mkdir(parents=True)
     (dataset_dir / "manifest.jsonl").write_text(
         '{"dataset":"roni","source":"NOAA CPC","source_url":"https://example.invalid/roni",'
-        '"retrieved_at":"2026-09-04T00:00:00+00:00","snapshot_id":"missing",'
+        '"retrieved_at":"2026-09-04T00:00:00+00:00","snapshot_id":"0000000000000000",'
         '"rows":1,"start":null,"end":null,"validation":{}}\n',
         encoding="utf-8",
     )
