@@ -15,6 +15,6 @@
     "GIT_BRANCH": "main"
   },
   "secrets": {
-    "required": ["GITHUB_TOKEN"]
+    "required": ["GITHUB_TOKEN", "RUN_SECRET"]
   }
 }
