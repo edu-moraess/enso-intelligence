@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 
 import pandas as pd
 import pytest
@@ -208,9 +209,9 @@ def test_load_latest_snapshot_rejects_manifest_row_count_mismatch(tmp_path: Path
         root=tmp_path,
     )
     manifest_path = tmp_path / "roni" / "manifest.jsonl"
-    entry = __import__("json").loads(manifest_path.read_text(encoding="utf-8"))
+    entry = json.loads(manifest_path.read_text(encoding="utf-8"))
     entry["rows"] = saved.rows + 1
-    manifest_path.write_text(__import__("json").dumps(entry) + "\\n", encoding="utf-8")
+    manifest_path.write_text(json.dumps(entry) + "\\n", encoding="utf-8")
 
     with pytest.raises(ValueError, match="row-count mismatch"):
         load_latest_snapshot("roni", REQUIRED, root=tmp_path)
