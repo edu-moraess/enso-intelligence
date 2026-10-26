@@ -135,9 +135,11 @@ The application keeps the interactive path deliberately small and uses only publ
 
 ## Cloudflare deployment
 
-The external scheduler is defined in `cloudflare/wrangler.jsonc` with a daily **16:05 UTC** Cron Trigger. Cloudflare Cron Triggers execute on UTC time and invoke the Worker's `scheduled()` handler.
+The external scheduler is defined in `cloudflare/wrangler.jsonc` with the Cron expression `5 */6 * * *`, which runs every six hours at minute 5 UTC (00:05, 06:05, 12:05 and 18:05 UTC). Cloudflare Cron Triggers execute on UTC time and invoke the Worker's `scheduled()` handler.
 
 Configure the GitHub token as a **Cloudflare secret** named `GITHUB_TOKEN`. Do not place the token in `wrangler.jsonc`, source code, or committed `.env` files.
+
+The optional HTTP `POST /run` endpoint also requires a high-entropy **Cloudflare secret** named `RUN_SECRET`. Set it with `npx wrangler secret put RUN_SECRET` and call the endpoint with `Authorization: Bearer <RUN_SECRET>`. Requests without a valid bearer secret are rejected; `GET /run` is not supported. The scheduled Cron handler does not use this HTTP secret. Never commit the secret or include it in logs.
 
 ```bash
 cd cloudflare

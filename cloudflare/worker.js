@@ -274,8 +274,40 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === "/health") return new Response(JSON.stringify({ status: "ok", service: "enso-data-core", foundation_version: FOUNDATION_VERSION }), { headers: { "Content-Type": "application/json" } });
     if (url.pathname === "/run") {
+      if (request.method !== "POST") {
+        return new Response("Method Not Allowed", {
+          status: 405,
+          headers: { Allow: "POST", "Content-Type": "text/plain" },
+        });
+      }
+
+      if (!env.RUN_SECRET) {
+        console.error("RUN_SECRET is not configured");
+        return new Response("Run endpoint is not configured", {
+          status: 503,
+          headers: { "Content-Type": "text/plain" },
+        });
+      }
+
+      const authorization = request.headers.get("Authorization") || "";
+      const suppliedSecret = authorization.startsWith("Bearer ")
+        ? authorization.slice(7)
+        : "";
+      if (!suppliedSecret || suppliedSecret !== env.RUN_SECRET) {
+        return new Response("Unauthorized", {
+          status: 401,
+          headers: {
+            "Content-Type": "text/plain",
+            "WWW-Authenticate": "Bearer",
+          },
+        });
+      }
+
       const result = await run(env);
-      return new Response(JSON.stringify(result, null, 2), { status: Object.keys(result.errors).length ? 500 : 200, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify(result, null, 2), {
+        status: Object.keys(result.errors).length ? 500 : 200,
+        headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+      });
     }
     return new Response("ENSO Data Core", { status: 200, headers: { "Content-Type": "text/plain" } });
   },
